@@ -190,6 +190,23 @@ Tensor<T> Tensor<T>::dagger() const
 }
 
 template<typename T>
+Global_Func::To_Real_t<T> Tensor<T>::max_abs() const
+{
+	using T_res = Global_Func::To_Real_t<T>;
+    T_res max_val = 0.0;
+    std::size_t size = this->get_shape_all();
+    for (size_t i = 0; i < size; ++i)
+    {
+        T_res abs_val = std::abs((*this->data)[i]);
+        if (abs_val > max_val)
+        {
+            max_val = abs_val;
+        }
+    }
+    return max_val;
+}
+
+template<typename T>
 Global_Func::To_Real_t<T> Tensor<T>::norm(const double p) const
 {
 	using T_res = Global_Func::To_Real_t<T>;

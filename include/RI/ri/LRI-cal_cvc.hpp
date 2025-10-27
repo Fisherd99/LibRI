@@ -124,7 +124,7 @@ for K
 				const Tensor<Tdata>& V_IJ = tools.get_Ds_ab(Label::ab::a0b0, I, J);
 				if (V_IJ.empty()) continue;
 				// symmetry: check if (I, J) in irreducible sector
-				auto& cvc_thread_IJ = cvc_thread[I][J];
+				auto& cvc_thread_IJ = cvc_thread_I[J];
 				for (TAC K : list_K)
 				{
 					const Tensor<Tdata>& C_I_IK = tools.get_Ds_ab(Label::ab::a, I, K);

@@ -65,6 +65,12 @@ public:
 		const double fac_add_Ds = 1.0);
 
 	std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>> cal_cvc();
+
+	std::map<TC, std::map<TC, Tensor<Tdata>>> cal_cvc_mo(
+		std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_oo_mo,
+		std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_vv_mo,
+		std::vector<TC>& R_list);
+	
 	std::map<TA, std::map<TAC, Tensor<Tdata>>> constract_cvc_ds(
 		const std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>>& cvc);
 
@@ -99,3 +105,4 @@ public:		// private:
 #include "LRI-set.hpp"
 #include "LRI-cal_loop3.hpp"
 #include "LRI-cal_cvc.hpp"
+#include "LRI-cal_cvc_mo.hpp"

@@ -47,6 +47,9 @@ public:
 	Tensor transpose() const;
 	Tensor dagger() const;
 
+	// get maximum absolute value among all elements
+	Global_Func::To_Real_t<T> max_abs() const;
+
 	/// permute from the input index order to {0, 1, 2, ..., N}
 	Tensor permute_from(const std::vector<std::size_t>& order) const;
 	/// permute from {0, 1, 2, ..., N } to the input new index order 
