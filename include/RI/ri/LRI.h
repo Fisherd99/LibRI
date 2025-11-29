@@ -25,7 +25,7 @@
 
 namespace RI
 {
-
+	using Tk = std::array<double, 3>;
 template<typename TA, typename Tcell, std::size_t Ndim, typename Tdata>
 class LRI
 {
@@ -66,11 +66,17 @@ public:
 
 	std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>> cal_cvc();
 
-	std::map<TC, std::map<TC, Tensor<Tdata>>> cal_cvc_mo(
+	std::map<TC, std::map<TC, Tensor<Tdata>>> cal_cvc_mo_R(
 		std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_oo_mo,
 		std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_vv_mo,
 		std::vector<TC>& R_list);
-	
+
+	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k(
+		std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_oo_mo,
+		std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_vv_mo,
+		std::vector<Tk>& k1_list,
+		std::vector<Tk>& k2_list);
+
 	std::map<TA, std::map<TAC, Tensor<Tdata>>> constract_cvc_ds(
 		const std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>>& cvc);
 

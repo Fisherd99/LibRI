@@ -160,7 +160,7 @@ namespace LRI_Cal_Aux
 		}
 	}
 
-	// Tkey labels thread lock, in actual use, Tkey can be TA or TC
+	// Tkey labels thread lock, in actual use, Tkey can be TA, TC, Tk, etc.
 	// Tvalue can be Tensor or another map<key..., Tensor>, both of them can be input of add_Ds
 	template<typename Tkey, typename Tvalue>
 	void add_Ds_omp_try_map(
@@ -185,7 +185,7 @@ namespace LRI_Cal_Aux
 		}
 	}
 
-	// Tkey labels thread lock, in actual use, Tkey can be TA or TC
+	// Tkey labels thread lock, in actual use, Tkey can be TA, TC, Tk, etc.
 	// Tvalue can be Tensor or another map<key..., Tensor>, both of them can be input of add_Ds
 	template<typename Tkey, typename Tvalue>
 	void add_Ds_omp_wait_map(
@@ -379,9 +379,9 @@ namespace LRI_Cal_Aux
 		return lock_Ds_result_add_map;
 	}
 
-	template<typename Tkey, typename Tkey2, typename Tvalue>
+	template<typename Tkey, typename Tvalue>
 	std::map<Tkey, omp_lock_t> init_lock_result(
-		std::map<Tkey, std::map<Tkey2, Tvalue>>& Ds_result,
+		std::map<Tkey, Tvalue>& Ds_result,
 		std::vector<Tkey> key_list)
 	{
 		std::map<Tkey, omp_lock_t> lock_Ds_result_add_map;
