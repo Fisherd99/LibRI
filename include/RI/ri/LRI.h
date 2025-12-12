@@ -71,6 +71,32 @@ public:
 		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_vv_mo,
 		const std::vector<TC>& R_list);
 
+	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_onthefly(
+		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
+		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& map_psi,
+		const std::vector<Tk>& k1_list,
+		const std::vector<Tk>& k2_list,
+		const std::vector<TA>& list_I,
+		const std::vector<TA>& list_J,
+		const std::vector<std::string>& psi_type,
+		const std::size_t nocc,
+		const std::size_t nvirt,
+		const std::string& save_name,
+		const std::vector<std::size_t>& order);
+
+	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_hartree_onthefly(
+		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
+		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& map_psi,
+		const std::vector<Tk>& k1_list,
+		const std::vector<Tk>& k2_list,
+		const std::vector<TA>& list_I,
+		const std::vector<TA>& list_J,
+		const std::vector<std::string>& psi_type,
+		const std::size_t nocc,
+		const std::size_t nvirt,
+		const std::string& save_name,
+		const std::vector<std::size_t>& order);
+
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k(
 		const std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_ji,// for B is Cs_bi
 		const std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_ab,// for B is Cs_aj
