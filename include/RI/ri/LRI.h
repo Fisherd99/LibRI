@@ -82,6 +82,7 @@ public:
 		const std::size_t nocc,
 		const std::size_t nvirt,
 		const std::string& save_name,
+		std::ostream& ofs,
 		const std::vector<std::size_t>& order);
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_hartree_onthefly(

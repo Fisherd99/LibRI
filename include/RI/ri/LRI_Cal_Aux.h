@@ -162,10 +162,10 @@ namespace LRI_Cal_Aux
 
 	// Tkey labels thread lock, in actual use, Tkey can be TA, TC, Tk, etc.
 	// Tvalue can be Tensor or another map<key..., Tensor>, both of them can be input of add_Ds
-	template<typename Tkey, typename Tvalue>
+	template<typename Tkey, typename Tvalue, typename TComparator>
 	void add_Ds_omp_try_map(
-		std::map<Tkey, Tvalue>& Ds_result_thread,
-		std::map<Tkey, Tvalue>& Ds_result,
+		std::map<Tkey, Tvalue, TComparator>& Ds_result_thread,
+		std::map<Tkey, Tvalue, TComparator>& Ds_result,
 		std::map<Tkey, omp_lock_t> &lock_Ds_result_add_map,
 		const double &fac)
 	{
@@ -187,10 +187,10 @@ namespace LRI_Cal_Aux
 
 	// Tkey labels thread lock, in actual use, Tkey can be TA, TC, Tk, etc.
 	// Tvalue can be Tensor or another map<key..., Tensor>, both of them can be input of add_Ds
-	template<typename Tkey, typename Tvalue>
+	template<typename Tkey, typename Tvalue, typename TComparator>
 	void add_Ds_omp_wait_map(
-		std::map<Tkey, Tvalue>& Ds_result_thread,
-		std::map<Tkey, Tvalue>& Ds_result,
+		std::map<Tkey, Tvalue, TComparator>& Ds_result_thread,
+		std::map<Tkey, Tvalue, TComparator>& Ds_result,
 		std::map<Tkey, omp_lock_t> &lock_Ds_result_add_map,
 		const double &fac)
 	{
@@ -379,9 +379,9 @@ namespace LRI_Cal_Aux
 		return lock_Ds_result_add_map;
 	}
 
-	template<typename Tkey, typename Tvalue>
+	template<typename Tkey, typename Tvalue, typename TComparator>
 	std::map<Tkey, omp_lock_t> init_lock_result(
-		std::map<Tkey, Tvalue>& Ds_result,
+		std::map<Tkey, Tvalue, TComparator>& Ds_result,
 		std::vector<Tkey> key_list)
 	{
 		std::map<Tkey, omp_lock_t> lock_Ds_result_add_map;
@@ -397,10 +397,10 @@ namespace LRI_Cal_Aux
 		return lock_Ds_result_add_map;
 	}
 
-	template<typename Tkey, typename Tvalue>
+	template<typename Tkey, typename Tvalue, typename TComparator>
 	void destroy_lock_result(
 		std::map<Tkey, omp_lock_t> &locks,
-		std::map<Tkey, Tvalue> &Ds_result)
+		std::map<Tkey, Tvalue, TComparator> &Ds_result)
 	{
 		for(auto &lock : locks)
 			omp_destroy_lock(&lock.second);

@@ -154,6 +154,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 	const std::size_t nocc,
 	const std::size_t nvirt,
 	const std::string& save_name,
+	std::ostream& ofs,
 	const std::vector<std::size_t>& order)
 {
 	using namespace Array_Operator;
@@ -163,7 +164,6 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 #endif
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k;
-	std::map<Tk, std::map<std::pair<TA,TA>, Tensor<Tdata>>> Vqs;
 	std::map<Tk, std::map<std::pair<TA,TA>, Tensor<Tdata>>, Tk_Comparator> Vqs_fuzzy;
 
 	const std::map<TA, std::map<TAC, Tensor<Tdata>>>& Vs = this->data_pool.at(save_name).Ds_ab;
@@ -174,16 +174,16 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
         for (const Tk& k2 : k2_list)
             q_set.insert( (k2 - k1) % k_unit );
 	std::vector<Tk> q_list(q_set.begin(), q_set.end());
-	print_k(std::cout, q_list, "q_list in rank 0");
+	print_k(ofs, q_list, "q_list");
 
 	// add thread lock for the first Tk key of cvc_mo_k
 	std::map<Tk, omp_lock_t> lock_cvc_result_add_map = LRI_Cal_Aux::init_lock_result(cvc_mo_k, k1_list);
 	// add thread lock for the Tk key of Vq
-	std::map<Tk, omp_lock_t> lock_vq_result_add_map = LRI_Cal_Aux::init_lock_result(Vqs, q_list);
+	std::map<Tk, omp_lock_t> lock_vq_result_add_map = LRI_Cal_Aux::init_lock_result(Vqs_fuzzy, q_list);
 	#pragma omp parallel
 	{
 		// 1. FT V_mu_nu <I,<J,R>> to V_mu_nu <q,<I,J>>
-		std::map<Tk, std::map<std::pair<TA,TA>, Tensor<Tdata>>> Vqs_thread;
+		std::map<Tk, std::map<std::pair<TA,TA>, Tensor<Tdata>>, Tk_Comparator> Vqs_thread;
 #pragma omp for schedule(static) collapse(2)
 		for (Tk q : q_list)
 		{
@@ -203,16 +203,14 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 					FT_Ds(V_mu_nu_R, Vq_thread[std::make_pair(mu, nu)], Global_Func::convert<Tdata>(fac));
 				}
 			}
-			LRI_Cal_Aux::add_Ds_omp_try_map(Vqs_thread, Vqs, lock_vq_result_add_map, 1.0);
+			LRI_Cal_Aux::add_Ds_omp_try_map(Vqs_thread, Vqs_fuzzy, lock_vq_result_add_map, 1.0);
 		}
-		LRI_Cal_Aux::add_Ds_omp_wait_map(Vqs_thread, Vqs, lock_vq_result_add_map, 1.0);
+		LRI_Cal_Aux::add_Ds_omp_wait_map(Vqs_thread, Vqs_fuzzy, lock_vq_result_add_map, 1.0);
 
 		#pragma omp barrier
 		#pragma omp master
 		{
-			LRI_Cal_Aux::destroy_lock_result(lock_vq_result_add_map, Vqs);
-			Vqs_fuzzy.insert(std::make_move_iterator(Vqs.begin()), std::make_move_iterator(Vqs.end()));
-			Vqs.clear();
+			LRI_Cal_Aux::destroy_lock_result(lock_vq_result_add_map, Vqs_fuzzy);
 		}
 		#pragma omp barrier
 
@@ -231,12 +229,13 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 					const Tensor<Tdata> C_mu_ji = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k2, k1, mu, psi_type[0], psi_type[1], nocc, nvirt);
 					for (const TA nu : list_J)
 					{
-						// 2.2 calculate C^nu (m3,m4)[k1,k2] on-the-fly
-						const Tensor<Tdata> C_nu_ab = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k1, k2, nu, psi_type[2], psi_type[3], nocc, nvirt);
-
 						const Tensor<Tdata>* Vq_mu_nu_ptr = find_map(Vq, std::make_pair(mu, nu));
 						if (Vq_mu_nu_ptr == nullptr) continue;
 						const Tensor<Tdata>& Vq_mu_nu = *Vq_mu_nu_ptr;
+
+						// 2.2 calculate C^nu (m3,m4)[k1,k2] on-the-fly
+						const Tensor<Tdata> C_nu_ab = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k1, k2, nu, psi_type[2], psi_type[3], nocc, nvirt);
+
 						// 2.3 calculate CVC_mo
 						// CV_{ji,nu} = C^mu_{ji} V_{mu,nu}
 						const Tensor<Tdata> CV_ji_nu = Tensor_Multiply::x1x2y1_ax1x2_ay1(C_mu_ji, Vq_mu_nu);
