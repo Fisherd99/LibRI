@@ -96,27 +96,7 @@ public:
 		const std::size_t nocc,
 		const std::size_t nvirt,
 		const std::string& save_name,
-		const std::vector<std::size_t>& order);
-
-	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k(
-		const std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_ji,// for B is Cs_bi
-		const std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_ab,// for B is Cs_aj
-		const std::vector<Tk>& k1_list,
-		const std::vector<Tk>& k2_list,
-		const std::vector<TA>& list_I,
-		const std::vector<TA>& list_J,
-		const std::string& save_name,
-		const std::vector<std::size_t>& order);
-
-	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_hartree(
-		const std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_ai,
-		const std::map<std::pair<Tk, Tk>, std::map<TA, RI::Tensor<Tdata>>>& Cs_jb, // for B is Cs_bj
-		const std::vector<Tk>& k1_list,
-		const std::vector<Tk>& k2_list,
-		const std::vector<TA>& list_I,
-		const std::vector<TA>& list_J,
-		const std::string& save_name,
-		const std::vector<std::size_t>& order);
+		const bool is_A);
 
 	std::map<TA, std::map<TAC, Tensor<Tdata>>> constract_cvc_ds(
 		const std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>>& cvc);
