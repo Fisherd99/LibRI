@@ -204,6 +204,18 @@ namespace LRI_Cal_Aux
 			#pragma omp taskyield
 		}
 	}
+	template<typename Tdata>
+	void FT_Ds(const Tensor<Tdata>& D_in, Tensor<Tdata>& D_out, const Tdata fac)
+	{
+		if (D_out.empty())
+		{
+			D_out = fac * D_in;
+		}
+		else
+		{
+			D_out += fac * D_in;
+		}
+	}
 
 	/*
 	template<typename T>

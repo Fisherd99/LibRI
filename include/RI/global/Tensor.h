@@ -46,6 +46,7 @@ public:
 
 	Tensor transpose() const;
 	Tensor dagger() const;
+	Tensor conjugate() const;
 
 	// get maximum absolute value among all elements
 	Global_Func::To_Real_t<T> max_abs() const;

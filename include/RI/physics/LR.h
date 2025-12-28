@@ -3,8 +3,11 @@
 
 namespace RI
 {
-// Nothing different from Exx, 
-// Except the two density matrices can be different
+// Difference from Exx: 
+// 1. in the `cal_force` function, two density matrices can be different
+// 2. set_Cs and set_Vs can parallelize the input tensors according to listI and listJ
+// 3. add set_Ws and free_Ws to setup screened Coulomb interaction
+// 4. feat: cvc_mo in k space
 template<typename TA, typename Tcell, std::size_t Ndim, typename Tdata>
 class  LR : public Exx<TA,Tcell,Ndim,Tdata>
 {

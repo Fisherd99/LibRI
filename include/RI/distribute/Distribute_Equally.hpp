@@ -191,6 +191,71 @@ namespace Distribute_Equally
 			std::get<2>(comm_color_sizes[4]),
 			indicesB);
 	}
+
+	// 均分{atomI,atomJ,k}
+	template<typename Tindex>
+	void distribute_atom_pair_and_k(
+		const MPI_Comm &mpi_comm,
+		const std::size_t nat,
+		const std::size_t nk,
+		std::vector<Tindex> &list_I,
+		std::vector<Tindex> &list_J,
+		std::vector<Tindex> &list_k_index,
+		const bool flag_task_repeatable)
+	{
+		std::vector<std::size_t> task_sizes;
+		std::vector<Tindex> indices_atom, indices_k;
+		for(Tindex i=0; i<nat; ++i)
+			indices_atom.push_back(i);
+		for(Tindex i=0; i<nk; ++i)
+			indices_k.push_back(i);
+	// task_sizes的顺序必须从小到大，否则在split中会出现rank_size<group_size，所以先判断nat和nk的大小
+		if (nk >= nat)
+		{
+			task_sizes = {nat, nat, nk};
+		}
+		else
+		{
+			task_sizes = {nk, nat, nat};
+		}
+		const std::vector<std::tuple<MPI_Wrapper::mpi_comm, std::size_t, std::size_t>>
+			comm_color_sizes = Split_Processes::split_all(mpi_comm, task_sizes);
+
+		if(!flag_task_repeatable)
+			if(RI::MPI_Wrapper::mpi_get_rank(std::get<0>(comm_color_sizes.back())()))
+				return;
+		
+		if (nk >= nat)
+		{
+			list_I = Divide_Atoms::divide_atoms(
+				std::get<1>(comm_color_sizes[1]),
+				std::get<2>(comm_color_sizes[1]),
+				indices_atom);
+			list_J = Divide_Atoms::divide_atoms(
+				std::get<1>(comm_color_sizes[2]),
+				std::get<2>(comm_color_sizes[2]),
+				indices_atom);
+			list_k_index = Divide_Atoms::divide_atoms(
+				std::get<1>(comm_color_sizes[3]),
+				std::get<2>(comm_color_sizes[3]),
+				indices_k);
+		}
+		else
+		{
+			list_k_index = Divide_Atoms::divide_atoms(
+				std::get<1>(comm_color_sizes[1]),
+				std::get<2>(comm_color_sizes[1]),
+				indices_k);
+			list_I = Divide_Atoms::divide_atoms(
+				std::get<1>(comm_color_sizes[2]),
+				std::get<2>(comm_color_sizes[2]),
+				indices_atom);
+			list_J = Divide_Atoms::divide_atoms(
+				std::get<1>(comm_color_sizes[3]),
+				std::get<2>(comm_color_sizes[3]),
+				indices_atom);
+		}
+	}
 }
 
 }

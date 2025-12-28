@@ -13,15 +13,6 @@
 
 namespace RI
 {
-inline double get_conj(const double& x)
-{
-	return x;
-}
-inline std::complex<double> get_conj(const std::complex<double>& x)
-{
-	return std::conj(x);
-}
-
 // this fuzzy comparator is used for q=k2-k1 comparison in std::map
 struct Tk_Comparator {
 	bool operator()(const Tk& lhs, const Tk& rhs) const {
@@ -48,25 +39,6 @@ inline void print_k(std::ostream& ofs, const std::vector<Tk>& vec, const std::st
 	}
 	ofs << std::endl;
 	ofs << std::defaultfloat;
-}
-
-template<typename Tdata, typename Tfac>
-inline void FT_Ds(const Tensor<Tdata>& D_in, Tensor<Tdata>& D_out, const Tfac fac)
-{
-	if (D_out.empty())
-	{
-		if (1.0==fac)
-			D_out = D_in.copy();
-		else
-			D_out = Tdata(fac) * D_in;
-	}
-	else
-	{
-		if (1.0==fac)
-			D_out += D_in;
-		else
-			D_out += Tdata(fac) * D_in;
-	}
 }
 
 inline void switch_mo_type(const std::string &type,
@@ -118,7 +90,7 @@ inline Tensor<Tdata> Cs_ao_mo_to_Cs_mo(
 		std::vector<Tdata> psi_k1_conj(nw * nmo1);
 		for (std::size_t m1 = 0; m1 < nmo1; ++m1)
 			for (std::size_t iw = 0; iw < nw; ++iw)
-				psi_k1_conj[m1 * nw + iw] = get_conj(psi_k1(imo1 + m1, iw));
+				psi_k1_conj[m1 * nw + iw] = Global_Func::get_conj(psi_k1(imo1 + m1, iw));
 		for (std::size_t iabf = 0; iabf < nabf; ++iabf)
 		{
 			Tdata *ptr_out = &Cs_mo(iabf, 0, 0);
@@ -145,7 +117,11 @@ inline Tensor<Tdata> Cs_ao_mo_to_Cs_mo(
 		for (std::size_t iabf = 0; iabf < nabf; ++iabf)
 			for (std::size_t iw = 0; iw < nw; ++iw)
 				for (std::size_t m2 = 0; m2 < nmo2; ++m2)
-					Cs_ao_mo_k2_conj[iabf * (nw * nmo2) + iw * nmo2 + m2] = get_conj(Cs_ao_mo_k2(iabf, iw, imo2 + m2));
+				{
+					Cs_ao_mo_k2_conj[iabf * (nw * nmo2) + iw * nmo2 + m2]
+						= Global_Func::get_conj(Cs_ao_mo_k2(iabf, iw, imo2 + m2));					
+				}
+
 		for (std::size_t iabf = 0; iabf < nabf; ++iabf)
 		{
 			Tdata *ptr_out = &Cs_mo(iabf, 0, 0);
@@ -230,7 +206,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 					const TC R = nu_R.second;
 					double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
 					std::complex<double> fac (cos(arg), sin(arg));
-					FT_Ds(V_mu_nu_R, Vq_thread[std::make_pair(mu, nu)], Global_Func::convert<Tdata>(fac));
+					LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Vq_thread[std::make_pair(mu, nu)], Global_Func::convert<Tdata>(fac));
 				}
 			}
 			LRI_Cal_Aux::add_Ds_omp_try_map(Vqs_thread, Vqs_fuzzy, lock_vq_result_add_map, 1.0);
@@ -375,10 +351,9 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 				const TC R = nu_R.second;
 				double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
 				std::complex<double> fac (cos(arg), sin(arg));
-				FT_Ds(V_mu_nu_R, Vq_mu_thread[nu], Global_Func::convert<Tdata>(fac));
+				LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Vq_mu_thread[nu], Global_Func::convert<Tdata>(fac));
 			}
 			LRI_Cal_Aux::add_Ds_omp_try_map(Vq_thread, Vq, lock_vq_result_add_map, 1.0);
-			// in theory, each mu only belongs to one thread, so try lock should always succeed
 		}
 		LRI_Cal_Aux::add_Ds_omp_wait_map(Vq_thread, Vq, lock_vq_result_add_map, 1.0);
 
@@ -392,20 +367,19 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 		// 2 calculate CVC_mo_k
 		std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k_thread;
 #pragma omp for schedule(dynamic) collapse(4)
-		for (const Tk k1: k1_list)
+		for (const TA mu : list_I)
 		{
-			for (const Tk k2: k2_list)
+			const auto& Vq_mu = Vq.at(mu);
+			for (const Tk k1: k1_list)
 			{
-				for (const TA mu : list_I)
+				// 2.1 calculate C^\mu (i,a^*)[k1,k1] on-the-fly
+				const Tensor<Tdata> C_mu_ia = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k1, k1, mu, psi_type[0], psi_type[1], nocc, nvirt, false);
+				for (const TA nu : list_J)
 				{
-					// 2.1 calculate C^\mu (i,a^*)[k1,k1] on-the-fly
-					const Tensor<Tdata> C_mu_ia = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k1, k1, mu, psi_type[0], psi_type[1], nocc, nvirt, false);
-					const auto& Vq_mu = Vq.at(mu);
-					for (const TA nu : list_J)
+					const Tensor<Tdata>& Vq_mu_nu = Global_Func::find(Vq_mu, nu);
+					if (Vq_mu_nu.empty()) continue;
+					for (const Tk k2: k2_list)
 					{
-						const Tensor<Tdata>& Vq_mu_nu = Global_Func::find(Vq_mu, nu);
-						if (Vq_mu_nu.empty()) continue;
-
 						// 2.2 calculate C^nu (m3,m4)[k1,k2] on-the-fly, C_nu_j^*b for A and C_nu_jb^* for B
 						Tensor<Tdata> C_nu_jb;
 						if (is_A){
@@ -420,8 +394,8 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 					}
 				}
 				LRI_Cal_Aux::add_Ds_omp_try_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
-			} // end for k2
-		} // end for k1
+			} // end for k1
+		} // end for mu
 		LRI_Cal_Aux::add_Ds_omp_wait_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
 	} // end #pragma omp parallel
 
@@ -437,16 +411,6 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 
 
 // below are some functions reserved for reference
-template<class Map, class Key>
-inline const typename Map::mapped_type* find_map(const Map& map, const Key& key)
-{
-	const auto ptr = map.find(key);
-	if (ptr != map.end()) {
-		return std::addressof(ptr->second);
-	}
-	return nullptr;
-}
-
 inline void print_a(const std::vector<int>& vec, const std::string name)
 {
 	std::cout << name << ": ";
@@ -518,10 +482,10 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_R(
 				const TA nu = nu_mu.first;
 				const TC R_nu_mu = nu_mu.second;
 
-				const auto* Cs_mu_oo_ptr = find_map(Cs_oo_mo, mu);
-				if (Cs_mu_oo_ptr == nullptr) continue;
-				const auto* Cs_nu_vv_ptr = find_map(Cs_vv_mo, nu);
-				if (Cs_nu_vv_ptr == nullptr) continue;
+				const auto& Cs_mu_oo_ptr = Global_Func::find_map(Cs_oo_mo, mu);
+				if (Cs_mu_oo_ptr.empty()) continue;
+				const auto& Cs_nu_vv_ptr = Global_Func::find_map(Cs_vv_mo, nu);
+				if (Cs_nu_vv_ptr.empty()) continue;
 				const auto& C_mu_oo = *Cs_mu_oo_ptr;
 				const auto& C_nu_vv = *Cs_nu_vv_ptr;
 				for (auto& c1 : C_mu_oo)

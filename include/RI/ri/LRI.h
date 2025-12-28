@@ -66,10 +66,8 @@ public:
 
 	std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>> cal_cvc();
 
-	std::map<TC, std::map<TC, Tensor<Tdata>>> cal_cvc_mo_R(
-		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_oo_mo,
-		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_vv_mo,
-		const std::vector<TC>& R_list);
+	std::map<TA, std::map<TAC, Tensor<Tdata>>> constract_cvc_ds(
+		const std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>>& cvc);
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_onthefly(
 		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
@@ -97,10 +95,20 @@ public:
 		const std::size_t nvirt,
 		const std::string& save_name,
 		const bool is_A);
+	
+	std::map<TA, std::map<TA, std::map<int, Tensor<Tdata>>>> cal_cvcd_k_hartree(
+		const std::map<TA, std::map<TA, std::map<int, Tensor<Tdata>>>>& Ds,  // D(s,t)[k]
+		const std::vector<Tk>& kindex_map,// k index to direct coordinate array<double, 3>
+		const std::vector<int>& list_k_index,
+		const std::vector<TA>& list_I,
+		const std::vector<TA>& list_J,
+		const std::vector<TA>& list_IJ);
 
-	std::map<TA, std::map<TAC, Tensor<Tdata>>> constract_cvc_ds(
-		const std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>>& cvc);
-
+	// this function is not used and reserved for benchmark
+	std::map<TC, std::map<TC, Tensor<Tdata>>> cal_cvc_mo_R(
+		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_oo_mo,
+		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_vv_mo,
+		const std::vector<TC>& R_list);
 public:
 	std::shared_ptr<Parallel_LRI<TA,Tcell,Ndim,Tdata>>
 		parallel = std::make_shared<Parallel_LRI_Equally<TA,Tcell,Ndim,Tdata>>();
@@ -133,3 +141,4 @@ public:		// private:
 #include "LRI-cal_loop3.hpp"
 #include "LRI-cal_cvc.hpp"
 #include "LRI-cal_cvc_mo.hpp"
+#include "LRI-cal_hartree.hpp"
