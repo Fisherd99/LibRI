@@ -13,6 +13,7 @@
 #include "RI_Tools.h"
 #include "../global/Global_Func-2.h"
 #include "Filter_Atom.h"
+#include "Cell_Nearest.h"
 
 #include <mpi.h>
 #include <array>
@@ -76,6 +77,7 @@ public:
 		const std::vector<Tk>& k2_list,
 		const std::vector<TA>& list_I,
 		const std::vector<TA>& list_J,
+		const Cell_Nearest<TA, Tcell, Ndim, double, 3>& cell_nearest,
 		const std::vector<std::string>& psi_type,
 		const std::size_t nocc,
 		const std::size_t nvirt,
