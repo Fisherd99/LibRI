@@ -155,7 +155,6 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 	const std::vector<Tk>& k2_list,
 	const std::vector<TA>& list_I,
 	const std::vector<TA>& list_J,
-	const Cell_Nearest<TA, Tcell, Ndim, double, 3>& cell_nearest,
 	const std::vector<std::string>& psi_type,
 	const std::size_t nocc,
 	const std::size_t nvirt,
@@ -204,17 +203,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 					const Tensor<Tdata>& V_mu_nu_R = Global_Func::find(V_mu, nu_R);
 					if (V_mu_nu_R.empty()) continue;
 					const TA nu = nu_R.first;
-					const TC R_original = nu_R.second;
-					double dist;
-					const TC R = cell_nearest.cell_nearest_check(mu, nu, R_original, dist);
-					// if (R_original != R)
-					// {
-					// 	#pragma omp critical
-					// 	std::cout << "in cal_cvc_mo: cell_nearest_check gives different R from ("
-					// 		<< R_original[0] << "," << R_original[1] << "," << R_original[2] << ") to ("
-					// 		<< R[0] << "," << R[1] << "," << R[2] 
-					// 		<< ") for I=" << mu << ", J=" << nu << ", dist=" << dist << std::endl;
-					// }
+					const TC& R = nu_R.second;
 					double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
 					std::complex<double> fac (cos(arg), sin(arg));
 					LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Vq_thread[std::make_pair(mu, nu)], Global_Func::convert<Tdata>(fac));
@@ -359,7 +348,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 				const Tensor<Tdata>& V_mu_nu_R = Global_Func::find(V_mu, nu_R);
 				if (V_mu_nu_R.empty()) continue;
 				const TA nu = nu_R.first;
-				const TC R = nu_R.second;
+				const TC& R = nu_R.second;
 				double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
 				std::complex<double> fac (cos(arg), sin(arg));
 				LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Vq_mu_thread[nu], Global_Func::convert<Tdata>(fac));
