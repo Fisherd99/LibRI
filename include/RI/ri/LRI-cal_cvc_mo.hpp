@@ -169,78 +169,62 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 #endif
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k;
-	std::map<Tk, std::map<std::pair<TA,TA>, Tensor<Tdata>>, Tk_Comparator> Vqs_fuzzy;
-
 	const std::map<TA, std::map<TAC, Tensor<Tdata>>>& Vs = this->data_pool.at(save_name).Ds_ab;
+	Tk k_unit{1.0, 1.0, 1.0};
 
 	std::set<Tk, Tk_Comparator> q_set;
-	Tk k_unit{1.0, 1.0, 1.0};
+	// 1. build q list and q -> (k1,k2) pairs mapping
+    std::map<Tk, std::vector<std::pair<Tk, Tk>>, Tk_Comparator> q2kpair;
     for (const Tk& k1 : k1_list)
+    {
         for (const Tk& k2 : k2_list)
-            q_set.insert( (k2 - k1) % k_unit );
+        {
+            Tk q = (k2 - k1) % k_unit;
+            q_set.insert(q);
+            q2kpair[q].emplace_back(k1, k2);
+        }
+    }
 	std::vector<Tk> q_list(q_set.begin(), q_set.end());
 	print_k(ofs, q_list, "q_list");
+	q_set.clear();
 
 	// add thread lock for the first Tk key of cvc_mo_k
 	std::map<Tk, omp_lock_t> lock_cvc_result_add_map = LRI_Cal_Aux::init_lock_result(cvc_mo_k, k1_list);
-	// add thread lock for the Tk key of Vq
-	std::map<Tk, omp_lock_t> lock_vq_result_add_map = LRI_Cal_Aux::init_lock_result(Vqs_fuzzy, q_list);
-	const std::vector<TAC> list_JR = Divide_Atoms::traversal_atom_period(list_J, this->period);
-	
-	#pragma omp parallel
+#pragma omp parallel
 	{
-		// 1. FT V_mu_nu <I,<J,R>> to V_mu_nu <q,<I,J>>
-		std::map<Tk, std::map<std::pair<TA,TA>, Tensor<Tdata>>, Tk_Comparator> Vqs_thread;
-#pragma omp for schedule(dynamic) collapse(3)
-		for (Tk q : q_list)
+		// 2. calculate CVC_mo_k
+		std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k_thread;
+#pragma omp for schedule(dynamic, 64) collapse(3)
+		for (const Tk q: q_list)
 		{
-			auto& Vq_thread = Vqs_thread[q];
 			for (const TA mu: list_I)
 			{
-				const auto& V_mu = Vs.at(mu);
-				for (const TAC& nu_R : list_JR)
-				{
-					const Tensor<Tdata>& V_mu_nu_R = Global_Func::find(V_mu, nu_R);
-					if (V_mu_nu_R.empty()) continue;
-					const TA nu = nu_R.first;
-					const TC& R = nu_R.second;
-					double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
-					std::complex<double> fac (cos(arg), sin(arg));
-					LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Vq_thread[std::make_pair(mu, nu)], Global_Func::convert<Tdata>(fac));
-				}
-			}
-			LRI_Cal_Aux::add_Ds_omp_try_map(Vqs_thread, Vqs_fuzzy, lock_vq_result_add_map, 1.0);
-		}
-		LRI_Cal_Aux::add_Ds_omp_wait_map(Vqs_thread, Vqs_fuzzy, lock_vq_result_add_map, 1.0);
-
-		#pragma omp barrier
-		#pragma omp master
-		{
-			LRI_Cal_Aux::destroy_lock_result(lock_vq_result_add_map, Vqs_fuzzy);
-		}
-		#pragma omp barrier
-
-		// 2 calculate CVC_mo_k
-		std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k_thread;
-#pragma omp for schedule(dynamic) collapse(4)
-		for (const Tk k1: k1_list)
-		{
-			for (const Tk k2: k2_list)
-			{
-				Tk q = (k2-k1) % k_unit;
-				const auto& Vq = Vqs_fuzzy.at(q);
-				for (const TA mu : list_I)
-				{
-					// 2.1 calculate C^\mu (m1^*,m2)[k2,k1] on-the-fly, C_mu_ji for A and C_mu_bi for B
-					const Tensor<Tdata> C_mu_ji = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k2, k1, mu, psi_type[0], psi_type[1], nocc, nvirt, true);
-					for (const TA nu : list_J)
+				for (const TA nu: list_J)
+				{	// 2.1 calculate V(q)_{mu,nu} on-the-fly
+					Tensor<Tdata> Vq_mu_nu;
+					const auto& V_mu = Vs.at(mu);
+					const std::vector<TAC> list_nuR = Divide_Atoms::traversal_atom_period(std::vector<TA>{nu}, this->period);
+					for (const TAC& nu_R : list_nuR)
 					{
-						const Tensor<Tdata>& Vq_mu_nu = Global_Func::find(Vq, std::make_pair(mu, nu));
-						if (Vq_mu_nu.empty()) continue;
+						const Tensor<Tdata>& V_mu_nu_R = Global_Func::find(V_mu, nu_R);
+						if (V_mu_nu_R.empty()) continue;
+						const TC& R = nu_R.second;
+						double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
+						std::complex<double> fac (cos(arg), sin(arg));
+						LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Vq_mu_nu, Global_Func::convert<Tdata>(fac));
+					}
+					if (Vq_mu_nu.empty()) continue;
+					
+					for (const auto& kpair: q2kpair.at(q))
+					{
+						const Tk k1 = kpair.first;
+						const Tk k2 = kpair.second;
 
-						// 2.2 calculate C^nu (m3,m4^*)[k2,k1] on-the-fly, C_nu_ba for A and C_nu_ja for B
+						// 2.2 calculate C^\mu (m1^*,m2)[k2,k1] on-the-fly, C_mu_ji for A and C_mu_bi for B
+						const Tensor<Tdata> C_mu_ji = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k2, k1, mu, psi_type[0], psi_type[1], nocc, nvirt, true);
+						// 2.3 calculate C^nu (m3,m4^*)[k2,k1] on-the-fly, C_nu_ba for A and C_nu_ja for B
 						const Tensor<Tdata> C_nu_ba = Cs_ao_mo_to_Cs_mo(Cs_ao_mo, map_psi, k2, k1, nu, psi_type[2], psi_type[3], nocc, nvirt, false);
-						// 2.3 calculate CVC_mo
+						// 2.4 calculate CVC_mo
 						// CV_{ji,nu} = C^mu_{ji} V_{mu,nu} | CV_{bi,nu} = C^mu_{bi} V_{mu,nu}
 						const Tensor<Tdata> CV_ji_nu = Tensor_Multiply::x1x2y1_ax1x2_ay1(C_mu_ji, Vq_mu_nu);
 						const std::size_t nnu = Vq_mu_nu.shape[1];
@@ -285,11 +269,11 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 						{
 							throw std::runtime_error("Error in cal_cvc_mo_k_onthefly: unsupported order");
 						}
-					}
-				}
-				LRI_Cal_Aux::add_Ds_omp_try_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
-			} // end for k2
-		} // end for k1
+					} // end for kpair
+				} // end for nu
+			} // end for mu
+			LRI_Cal_Aux::add_Ds_omp_try_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
+		} // end for q
 		LRI_Cal_Aux::add_Ds_omp_wait_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
 	} // end #pragma omp parallel
 
@@ -366,7 +350,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 
 		// 2 calculate CVC_mo_k
 		std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k_thread;
-#pragma omp for schedule(dynamic) collapse(4)
+#pragma omp for schedule(dynamic, 64) collapse(4)
 		for (const TA mu : list_I)
 		{
 			const auto& Vq_mu = Vq.at(mu);
