@@ -36,7 +36,7 @@ public:
 		const std::set<TA> &listJ,
 		const std::string &save_name_suffix="")
 	{
-		Cs = Communicate_Tensors_Map_Judge::comm_map2_first(this->lri.mpi_comm, std::move(Cs), listI, listJ);
+		//Cs = Communicate_Tensors_Map_Judge::comm_map2_first(this->lri.mpi_comm, std::move(Cs), listI, listJ);
 		this->lri.set_tensors_map2(
 			Cs,
 			{Label::ab::a, Label::ab::b},
@@ -52,7 +52,7 @@ public:
 		const std::set<TA> &listJ,
 		const std::string &save_name_suffix="")
 	{
-		Vs = Communicate_Tensors_Map_Judge::comm_map2_first(this->lri.mpi_comm, std::move(Vs), listI, listJ);
+		//Vs = Communicate_Tensors_Map_Judge::comm_map2_first(this->lri.mpi_comm, std::move(Vs), listI, listJ);
 		this->lri.set_tensors_map2(
 			Vs,
 			{Label::ab::a0b0},
@@ -69,7 +69,7 @@ public:
 		const std::set<TA> &listJ,
 		const std::string &save_name_suffix="")
 	{
-		Ws = Communicate_Tensors_Map_Judge::comm_map2_first(this->lri.mpi_comm, std::move(Ws), listI, listJ);
+		//Ws = Communicate_Tensors_Map_Judge::comm_map2_first(this->lri.mpi_comm, std::move(Ws), listI, listJ);
 		this->lri.set_tensors_map2(
 			Ws,
 			{Label::ab::a0b0},

@@ -50,11 +50,12 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 		Tk q{0.0, 0.0, 0.0};
 		// 1. FT V_mu_nu <I,<J,R>> to V_mu_nu <q=0,<I,J>>
 		std::map<TA, std::map<TA, Tensor<Tdata>>> Vq_thread;
-#pragma omp for schedule(dynamic) collapse(2) nowait
+
 		for (const TA mu : list_I)
 		{
 			const auto& V_mu = Vs.at(mu);
 			auto& Mu_Vq_nu_thread = Vq_thread[mu];
+	#pragma omp for schedule(dynamic) nowait
 			for (const TAC& nu_R : list_IJR)
 			{
 				const Tensor<Tdata>& V_mu_nu_R = Global_Func::find(V_mu, nu_R);
@@ -63,18 +64,18 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 				const TC R = nu_R.second;
 				double arg = 2.0 * M_PI * (q[0] * R[0] + q[1] * R[1] + q[2] * R[2]);
 				std::complex<double> fac (cos(arg), sin(arg));
-				LRI_Cal_Aux::FT_Ds(V_mu_nu_R, Mu_Vq_nu_thread[nu], Global_Func::convert<Tdata>(fac));
+				LRI_Cal_Aux::add_Ds(V_mu_nu_R, Mu_Vq_nu_thread[nu], Global_Func::convert<Tdata>(fac));
 			}
 			LRI_Cal_Aux::add_Ds_omp_try_map(Vq_thread, Vq, lock_vq_result_add_map, 1.0);
 		}
 
         // 2. FT CsR <I,<J,R>> to Csk <I,<J,<k tensor{nabf, nwt1, nwt2}>>>
         std::map<TA, std::map<TA, std::map<int, Tensor<Tdata>>>> Csk_thread;
-#pragma omp for schedule(dynamic) collapse(2) nowait
 		for (const TA mu : list_IJ)
 		{
 			const auto& Cs_mu = Cs.at(mu);
-			auto& Mu_C_nu_k_thread = Csk_thread[mu]; 
+			auto& Mu_C_nu_k_thread = Csk_thread[mu];
+	#pragma omp for schedule(dynamic) nowait
 			for (const TAC& nu_R : list_IJR)
 			{
 				const Tensor<Tdata>& Cs_mu_nu_R = Global_Func::find(Cs_mu, nu_R);
@@ -87,7 +88,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 					const Tk kd = kindex_map.at(k);
                     double arg = 2.0 * M_PI * (kd[0] * R[0] + kd[1] * R[1] + kd[2] * R[2]);
                     std::complex<double> fac (cos(arg), sin(arg));
-                    LRI_Cal_Aux::FT_Ds(Cs_mu_nu_R, Nu_C_k_thread[k], Global_Func::convert<Tdata>(fac));
+                    LRI_Cal_Aux::add_Ds(Cs_mu_nu_R, Nu_C_k_thread[k], Global_Func::convert<Tdata>(fac));
                 }
             }   
             LRI_Cal_Aux::add_Ds_omp_try_map(Csk_thread, Csk, lock_csk_result_add_map, 1.0);         
@@ -107,7 +108,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 
 		// 3. calculate M_nu =\sum_{uvk} (C^nu_u_v[k] + C^nu*_v_u[k]) D_v_u[k]		
         std::map<TA, Tensor<Tdata>> M_nu_thread;
-#pragma omp for schedule(dynamic) collapse(3)
+#pragma omp for schedule(dynamic) collapse(2)
 		for (const TA v : list_I)
 		{
 			for (const TA u : list_J)
@@ -188,7 +189,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 	mkl_set_num_threads(1);
 #endif
 
-#pragma omp parallel for schedule(dynamic) collapse(3)
+#pragma omp parallel for schedule(dynamic) collapse(2)
 	for (const TA s : list_I)
 	{
 		for (const TA t : list_J)

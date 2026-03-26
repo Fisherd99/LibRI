@@ -56,7 +56,14 @@ namespace LRI_Cal_Aux
 		else
 			D_result = D_result + D_add;
 	}
-
+	template<typename Tdata>
+	void add_Ds(const Tensor<Tdata>& D_in, Tensor<Tdata>& D_out, const Tdata fac)
+	{
+		if (D_out.empty())
+			D_out = fac * D_in;
+		else
+			D_out += fac * D_in;
+	}
 	template<typename Tdata>
 	inline void add_Ds(
 		Tensor<Tdata> &&D_add,
@@ -202,18 +209,6 @@ namespace LRI_Cal_Aux
 			if(Ds_result_thread.empty())
 				return;
 			#pragma omp taskyield
-		}
-	}
-	template<typename Tdata>
-	void FT_Ds(const Tensor<Tdata>& D_in, Tensor<Tdata>& D_out, const Tdata fac)
-	{
-		if (D_out.empty())
-		{
-			D_out = fac * D_in;
-		}
-		else
-		{
-			D_out += fac * D_in;
 		}
 	}
 
