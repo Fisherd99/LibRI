@@ -82,7 +82,7 @@ public:
 		const std::size_t nvirt,
 		const std::string& save_name,
 		std::ostream& ofs,
-		const std::vector<std::size_t>& order);
+		const bool is_A);
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_hartree_onthefly(
 		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,

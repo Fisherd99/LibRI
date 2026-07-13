@@ -160,7 +160,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 	const std::size_t nvirt,
 	const std::string& save_name,
 	std::ostream& ofs,
-	const std::vector<std::size_t>& order)
+	const bool is_A)
 {
 	using namespace Array_Operator;
 #ifdef __MKL_RI
@@ -228,7 +228,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 						// CV_{ji,nu} = C^mu_{ji} V_{mu,nu} | CV_{bi,nu} = C^mu_{bi} V_{mu,nu}
 						const Tensor<Tdata> CV_ji_nu = Tensor_Multiply::x1x2y1_ax1x2_ay1(C_mu_ji, Vq_mu_nu);
 						const std::size_t nnu = Vq_mu_nu.shape[1];
-						if (order == std::vector<std::size_t>{0,2,1,3}) // (jiba) -> (jbia)
+						if (is_A)
 						{	// (j,i nu) * (nu,b a) = (jiba) -> (j,bia)
 							//    ̅            ̅                    ̅ ̅
 							Tensor<Tdata> cvc({nocc, nvirt, nocc, nvirt});
@@ -247,7 +247,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 											
 							LRI_Cal_Aux::add_Ds(std::move(cvc), cvc_mo_k_thread[k1][k2]);
 						}
-						else if (order == std::vector<std::size_t>{2,0,1,3}) // (bija) -> (jbia)
+						else
 						{	// (b i,nu) * (nu,j a) = (bija) -> (jb,ia)
 							//    ̅            ̅                  ̅   ̅ 
 							Tensor<Tdata> cvc({nocc, nvirt, nocc, nvirt});
@@ -264,10 +264,6 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 											Tdata(0.0), &cvc(j, 0, i, 0), ldc);
 									}
 							LRI_Cal_Aux::add_Ds(std::move(cvc), cvc_mo_k_thread[k1][k2]);
-						}
-						else
-						{
-							throw std::runtime_error("Error in cal_cvc_mo_k_onthefly: unsupported order");
 						}
 					} // end for kpair
 					LRI_Cal_Aux::add_Ds_omp_try_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
