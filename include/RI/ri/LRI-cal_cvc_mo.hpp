@@ -13,34 +13,6 @@
 
 namespace RI
 {
-// this fuzzy comparator is used for q=k2-k1 comparison in std::map
-struct Tk_Comparator {
-	bool operator()(const Tk& lhs, const Tk& rhs) const {
-		constexpr double epsilon = 1e-6;
-		for (int i = 0; i < 3; ++i) {
-			if (std::abs(lhs[i] - rhs[i]) > epsilon) {
-				return lhs[i] < rhs[i];
-			}
-		}
-		return false;
-	}
-};
-
-inline void print_k(std::ostream& ofs, const std::vector<Tk>& vec, const std::string name)
-{
-	ofs << name << ": size = " << vec.size() << std::endl;
-	ofs << std::fixed << std::setprecision(4);
-	int count = 0;
-	for (auto& v : vec)
-	{
-		ofs << "(" << std::setw(6) << v[0] <<", "<< std::setw(6) << v[1] <<", "<< std::setw(6) << v[2] <<") ";
-		count++;
-		if (count % 5 == 0) { ofs << std::endl; }
-	}
-	ofs << std::endl;
-	ofs << std::defaultfloat;
-}
-
 inline void switch_mo_type(const std::string &type,
 						   std::size_t &imo, std::size_t &nmo,
 						   std::size_t nocc, std::size_t nvirt)
@@ -159,8 +131,9 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 	const std::size_t nocc,
 	const std::size_t nvirt,
 	const std::string& save_name,
-	std::ostream& ofs,
-	const bool is_A)
+	const bool is_A,
+	const std::vector<Tk>& q_list,
+	const std::map<Tk, std::vector<std::pair<Tk, Tk>>, Tk_Comparator>& q2kpair)
 {
 	using namespace Array_Operator;
 #ifdef __MKL_RI
@@ -170,24 +143,6 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cvc_mo_k;
 	const std::map<TA, std::map<TAC, Tensor<Tdata>>>& Vs = this->data_pool.at(save_name).Ds_ab;
-	Tk k_unit{1.0, 1.0, 1.0};
-
-	std::set<Tk, Tk_Comparator> q_set;
-	// 1. build q list and q -> (k1,k2) pairs mapping
-    std::map<Tk, std::vector<std::pair<Tk, Tk>>, Tk_Comparator> q2kpair;
-    for (const Tk& k1 : k1_list)
-    {
-        for (const Tk& k2 : k2_list)
-        {
-            Tk q = (k2 - k1) % k_unit;
-            q_set.insert(q);
-            q2kpair[q].emplace_back(k1, k2);
-        }
-    }
-	std::vector<Tk> q_list(q_set.begin(), q_set.end());
-	print_k(ofs, q_list, "q_list");
-	q_set.clear();
-
 	// add thread lock for the first Tk key of cvc_mo_k
 	std::map<Tk, omp_lock_t> lock_cvc_result_add_map = LRI_Cal_Aux::init_lock_result(cvc_mo_k, k1_list);
 #pragma omp parallel
@@ -214,7 +169,7 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 						LRI_Cal_Aux::add_Ds(V_mu_nu_R, Vq_mu_nu, Global_Func::convert<Tdata>(fac));
 					}
 					if (Vq_mu_nu.empty()) continue;
-					
+
 					for (const auto& kpair: q2kpair.at(q))
 					{
 						const Tk k1 = kpair.first;
@@ -244,7 +199,6 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 											Tdata(1.0), &CV_ji_nu(0, i, 0), lda, &C_nu_ba(0, b, 0), ldb,
 											Tdata(0.0), &cvc(0, b, i, 0), ldc);
 									}
-											
 							LRI_Cal_Aux::add_Ds(std::move(cvc), cvc_mo_k_thread[k1][k2]);
 						}
 						else

@@ -27,6 +27,20 @@
 namespace RI
 {
 	using Tk = std::array<double, 3>;
+
+	// fuzzy comparator for q=k2-k1 comparison in std::map/std::set
+	struct Tk_Comparator {
+		bool operator()(const Tk& lhs, const Tk& rhs) const {
+			constexpr double epsilon = 1e-6;
+			for (int i = 0; i < 3; ++i) {
+				if (std::abs(lhs[i] - rhs[i]) > epsilon) {
+					return lhs[i] < rhs[i];
+				}
+			}
+			return false;
+		}
+	};
+
 template<typename TA, typename Tcell, std::size_t Ndim, typename Tdata>
 class LRI
 {
@@ -81,8 +95,22 @@ public:
 		const std::size_t nocc,
 		const std::size_t nvirt,
 		const std::string& save_name,
-		std::ostream& ofs,
 		const bool is_A);
+
+	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_onthefly(
+		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
+		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& map_psi,
+		const std::vector<Tk>& k1_list,
+		const std::vector<Tk>& k2_list,
+		const std::vector<TA>& list_I,
+		const std::vector<TA>& list_J,
+		const std::vector<std::string>& psi_type,
+		const std::size_t nocc,
+		const std::size_t nvirt,
+		const std::string& save_name,
+		const bool is_A,
+		const std::vector<Tk>& q_list,
+		const std::map<Tk, std::vector<std::pair<Tk, Tk>>, Tk_Comparator>& q2kpair);
 
 	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_hartree_onthefly(
 		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
@@ -105,11 +133,6 @@ public:
 		const std::vector<TA>& list_J,
 		const std::vector<TA>& list_IJ);
 
-	// this function is not used and reserved for benchmark
-	std::map<TC, std::map<TC, Tensor<Tdata>>> cal_cvc_mo_R(
-		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_oo_mo,
-		const std::map<TA, std::map<std::pair<TC, TC>, RI::Tensor<Tdata>>>& Cs_vv_mo,
-		const std::vector<TC>& R_list);
 public:
 	std::shared_ptr<Parallel_LRI<TA,Tcell,Ndim,Tdata>>
 		parallel = std::make_shared<Parallel_LRI_Equally<TA,Tcell,Ndim,Tdata>>();
