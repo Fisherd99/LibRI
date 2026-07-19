@@ -58,11 +58,11 @@ auto Cell_Nearest<TA,Tcell,Ndim,Tpos,Npos>::get_cell_nearest_discrete(
 }
 
 template <typename TA, typename Tcell, std::size_t Ndim, typename Tpos, std::size_t Npos>
-auto Cell_Nearest<TA, Tcell, Ndim, Tpos, Npos>::cell_nearest_check(
+auto Cell_Nearest<TA, Tcell, Ndim, Tpos, Npos>::cell_nearest_direction(
 	const TA Ax, const TA Ay, const TC &cell, double &dist_min) const
 -> TC
 {
-	static_assert(Ndim == 3, "cell_nearest_check currently assumes Ndim==3.");
+	static_assert(Ndim == 3, "cell_nearest_direction currently assumes Ndim==3.");
 
     TC R_near = cell;
     const std::array<Tpos,Ndim> &Ryx = this->cells_nearest_continuous.at(Ax).at(Ay); //frac coordinate, Rx-Ry
@@ -95,7 +95,7 @@ auto Cell_Nearest<TA, Tcell, Ndim, Tpos, Npos>::cell_nearest_check(
                 }
 				else if (std::abs(dist - dist_min) < 1e-6)
 				{
-					// in case of tie, choose the one with smaller abs(R-cell).z, then .y, then .x
+					// in case of tie, choose the one with smaller abs(R-R_near).z, then .y, then .x
 					if (std::abs(c) < std::abs(c_min) || 
 						(std::abs(c) == std::abs(c_min) && (std::abs(b) < std::abs(b_min) ||
 						 (std::abs(b) == std::abs(b_min) && std::abs(a) < std::abs(a_min) ))))

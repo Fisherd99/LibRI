@@ -18,7 +18,7 @@ std::map<TA, std::map<TA, std::map<int, Tensor<Tdata>>>> // H(s,t)[k]
 LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 	const std::map<TA, std::map<TA, std::map<int, Tensor<Tdata>>>>& Ds,  // D(s,t)[k]
 	const std::vector<Tk>& kindex_map,// k index to direct coordinate array<double, 3>
-	const std::vector<int>& list_k_index,
+	const std::vector<int>& k_indices,
 	const std::vector<TA>& list_I,
 	const std::vector<TA>& list_J,
 	const std::vector<TA>& list_IJ)
@@ -83,12 +83,12 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 				const TA nu = nu_R.first;
 				const TC R = nu_R.second;
 				auto& Nu_C_k_thread = Mu_C_nu_k_thread[nu];
-				for (const int k: list_k_index)
+				for (const int ik: k_indices)
 				{
-					const Tk kd = kindex_map.at(k);
-                    double arg = 2.0 * M_PI * (kd[0] * R[0] + kd[1] * R[1] + kd[2] * R[2]);
+					const Tk k = kindex_map.at(ik);
+                    double arg = 2.0 * M_PI * (k[0] * R[0] + k[1] * R[1] + k[2] * R[2]);
                     std::complex<double> fac (cos(arg), sin(arg));
-                    LRI_Cal_Aux::add_Ds(Cs_mu_nu_R, Nu_C_k_thread[k], Global_Func::convert<Tdata>(fac));
+                    LRI_Cal_Aux::add_Ds(Cs_mu_nu_R, Nu_C_k_thread[ik], Global_Func::convert<Tdata>(fac));
                 }
             }   
             LRI_Cal_Aux::add_Ds_omp_try_map(Csk_thread, Csk, lock_csk_result_add_map, 1.0);         
@@ -119,13 +119,13 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 				const std::size_t nwt2 = D_v_u.begin()->second.shape[1];
 				const std::map<int, Tensor<Tdata>>& Csk_u_v = Global_Func::find_map(Csk, u, v);
 				const std::map<int, Tensor<Tdata>>& Csk_v_u = Global_Func::find_map(Csk, v, u);
-				for (const int k: list_k_index)
+				for (const int ik: k_indices)
 				{
 					if (!Csk_u_v.empty())
 					{
-						const Tensor<Tdata>& D_v_u_k = Global_Func::find(D_v_u, k);
+						const Tensor<Tdata>& D_v_u_k = Global_Func::find(D_v_u, ik);
 						if (D_v_u_k.empty()) continue;
-						const Tensor<Tdata>& C_u_v_k = Global_Func::find(Csk_u_v, k);
+						const Tensor<Tdata>& C_u_v_k = Global_Func::find(Csk_u_v, ik);
 						if (C_u_v_k.empty()) continue;
 						assert(C_u_v_k.shape[1]==nwt2);
 						assert(C_u_v_k.shape[2]==nwt1);
@@ -134,9 +134,9 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 					}
 					if (!Csk_v_u.empty())
 					{
-						const Tensor<Tdata>& D_v_u_k = Global_Func::find(D_v_u, k);
+						const Tensor<Tdata>& D_v_u_k = Global_Func::find(D_v_u, ik);
 						if (D_v_u_k.empty()) continue;
-						const Tensor<Tdata>& C_v_u_k = Global_Func::find(Csk_v_u, k);
+						const Tensor<Tdata>& C_v_u_k = Global_Func::find(Csk_v_u, ik);
 						if (C_v_u_k.empty()) continue;
 						assert(C_v_u_k.shape[1]==nwt1);
 						assert(C_v_u_k.shape[2]==nwt2);
@@ -179,9 +179,9 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 		for (const TA t : list_J)
 		{
 			std::map<int, Tensor<Tdata>>& hartree_st = hartree_s[t];
-			for (const int k: list_k_index)
+			for (const int ik: k_indices)
 			{
-				hartree_st[k];
+				hartree_st[ik];
 			}
 		}
 	}
@@ -200,22 +200,22 @@ LRI<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 			const Tensor<Tdata>& N_Mu_at_s = N_mu.at(s);
 			const Tensor<Tdata>& N_Mu_at_t = N_mu.at(t);
 
-			for (const int k: list_k_index)
+			for (const int ik: k_indices)
 			{
 				if (!Csk_s_t.empty())
 				{
-					const Tensor<Tdata>& C_s_t_k = Global_Func::find(Csk_s_t, k);
+					const Tensor<Tdata>& C_s_t_k = Global_Func::find(Csk_s_t, ik);
 					if (C_s_t_k.empty()) continue;
 					// H_st[k] += C^mu_s_t[k] * N_mu
-					LRI_Cal_Aux::add_Ds(Tensor_Multiply::gemv_trans(C_s_t_k, N_Mu_at_s), hartree_st.at(k));
+					LRI_Cal_Aux::add_Ds(Tensor_Multiply::gemv_trans(C_s_t_k, N_Mu_at_s), hartree_st.at(ik));
 				}
 				if (!Csk_t_s.empty())
 				{
-					const Tensor<Tdata>& C_t_s_k = Global_Func::find(Csk_t_s, k);
+					const Tensor<Tdata>& C_t_s_k = Global_Func::find(Csk_t_s, ik);
 					if (C_t_s_k.empty()) continue;
 					// H_st[k] += C^mu*_t_s[k] * N_mu
 					Tensor<Tdata> tmp = Tensor_Multiply::gemv_trans(C_t_s_k.conjugate(), N_Mu_at_t);
-					LRI_Cal_Aux::add_Ds(tmp.transpose(), hartree_st.at(k));
+					LRI_Cal_Aux::add_Ds(tmp.transpose(), hartree_st.at(ik));
 				}
 			}
 		}

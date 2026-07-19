@@ -14,6 +14,7 @@
 #include <numeric>
 #include <functional>
 #include <cassert>
+#include <iostream>
 #include <limits>
 
 namespace RI
@@ -102,10 +103,18 @@ template<typename T1, typename T2>
 bool same_shape (const Tensor<T1> &t1, const Tensor<T2> &t2)
 {
 	if(t1.shape.size() != t2.shape.size())
+	{
+		std::cerr << "same_shape: ndim mismatch ("
+		          << t1.shape.size() << " vs " << t2.shape.size() << ")" << std::endl;
 		return false;
+	}
 	for(std::size_t ishape=0; ishape<t1.shape.size(); ++ishape)
 		if(t1.shape[ishape] != t2.shape[ishape])
+		{
+			std::cerr << "same_shape: dim[" << ishape << "] mismatch ("
+			          << t1.shape[ishape] << " vs " << t2.shape[ishape] << ")" << std::endl;
 			return false;
+		}
 	return true;
 }
 

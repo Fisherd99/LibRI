@@ -28,19 +28,6 @@ namespace RI
 {
 	using Tk = std::array<double, 3>;
 
-	// fuzzy comparator for q=k2-k1 comparison in std::map/std::set
-	struct Tk_Comparator {
-		bool operator()(const Tk& lhs, const Tk& rhs) const {
-			constexpr double epsilon = 1e-6;
-			for (int i = 0; i < 3; ++i) {
-				if (std::abs(lhs[i] - rhs[i]) > epsilon) {
-					return lhs[i] < rhs[i];
-				}
-			}
-			return false;
-		}
-	};
-
 template<typename TA, typename Tcell, std::size_t Ndim, typename Tdata>
 class LRI
 {
@@ -84,24 +71,17 @@ public:
 	std::map<TA, std::map<TAC, Tensor<Tdata>>> constract_cvc_ds(
 		const std::map<TA, std::map<TAC, std::map<TA, std::map<TAC, Tensor<Tdata>>>>>& cvc);
 
-	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_onthefly(
-		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
-		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& map_psi,
-		const std::vector<Tk>& k1_list,
-		const std::vector<Tk>& k2_list,
-		const std::vector<TA>& list_I,
-		const std::vector<TA>& list_J,
-		const std::vector<std::string>& psi_type,
-		const std::size_t nocc,
-		const std::size_t nvirt,
-		const std::string& save_name,
-		const bool is_A);
-
-	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_onthefly(
-		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
-		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& map_psi,
-		const std::vector<Tk>& k1_list,
-		const std::vector<Tk>& k2_list,
+	std::map<int, std::map<TA, Tensor<Tdata>>> cal_Csk_ao_mo(
+		const std::map<TA, std::map<TAC, Tensor<Tdata>>>& CsR_ao,
+		const std::map<int, std::map<TA, Tensor<Tdata>>>& map_psi,
+		const std::vector<Tk>& kindex_map,
+		const std::vector<int>& k_indices, const std::vector<TA>& list_IJ, std::ofstream& ofs);
+	
+	std::map<int, std::map<int, Tensor<Tdata>>> cal_cvc_mo_k_onthefly(
+		const std::map<int, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
+		const std::map<int, std::map<TA, Tensor<Tdata>>>& map_psi,
+		const std::vector<int>& k1_indices,
+		const std::vector<int>& k2_indices,
 		const std::vector<TA>& list_I,
 		const std::vector<TA>& list_J,
 		const std::vector<std::string>& psi_type,
@@ -109,14 +89,14 @@ public:
 		const std::size_t nvirt,
 		const std::string& save_name,
 		const bool is_A,
-		const std::vector<Tk>& q_list,
-		const std::map<Tk, std::vector<std::pair<Tk, Tk>>, Tk_Comparator>& q2kpair);
+		const std::vector<Tk>& q_list_in,
+		const std::map<Tk,std::vector<std::pair<int, int>>>& q2kpair_in);
 
-	std::map<Tk, std::map<Tk, Tensor<Tdata>>> cal_cvc_mo_k_hartree_onthefly(
-		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
-		const std::map<Tk, std::map<TA, Tensor<Tdata>>>& map_psi,
-		const std::vector<Tk>& k1_list,
-		const std::vector<Tk>& k2_list,
+	std::map<int, std::map<int, Tensor<Tdata>>> cal_cvc_mo_k_hartree_onthefly(
+		const std::map<int, std::map<TA, Tensor<Tdata>>>& Cs_ao_mo,
+		const std::map<int, std::map<TA, Tensor<Tdata>>>& map_psi,
+		const std::vector<int>& k1_indices,
+		const std::vector<int>& k2_indices,
 		const std::vector<TA>& list_I,
 		const std::vector<TA>& list_J,
 		const std::vector<std::string>& psi_type,
