@@ -6,7 +6,6 @@
 #pragma once
 
 #include "Lapack-Fortran.h"
-#include "Blas_Interface.h"
 
 #include <vector>
 #include <string>

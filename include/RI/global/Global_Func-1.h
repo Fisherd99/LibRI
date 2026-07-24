@@ -7,6 +7,10 @@
 
 #include "Tensor.h"
 
+#ifdef __GPU_RI
+#include "../ri/gpu/GPU_Data_Pack.h"
+#endif
+
 #include <vector>
 #include <map>
 #include <set>
@@ -47,6 +51,17 @@ namespace Global_Func
 		else
 			return ptr->second;
 	}
+	template<typename Tkey, typename Tvalue>
+	inline Tvalue*const &find(
+		const std::map<Tkey, Tvalue*> &m,
+		const Tkey &key)
+	{
+		const auto &ptr = m.find(key);
+		if(ptr==m.end())
+			return ZERO<Tvalue*>;
+		else
+			return ptr->second;
+	}
 	template<typename Tkey, typename Tdata, std::size_t Ndim>
 	inline const std::array<Tdata,Ndim> &find(
 		const std::map<Tkey, std::array<Tdata,Ndim>> &m,
@@ -69,6 +84,21 @@ namespace Global_Func
 		else
 			return ptr->second;
 	}
+
+	#ifdef __GPU_RI
+	template<typename Tkey>
+	inline const GPU_Data::Pack &find(
+		const std::map<Tkey, GPU_Data::Pack> &m,
+		const Tkey &key)
+	{
+		const auto &ptr = m.find(key);
+		if(ptr==m.end())
+			return ZERO<GPU_Data::Pack>;
+		else
+			return ptr->second;
+	}
+	#endif
+
 	template<typename Tkey0, typename Tkey1, typename Tvalue, typename... Tkeys>
 	inline const auto &find(
 		const std::map<Tkey0, std::map<Tkey1,Tvalue>> &m,

@@ -33,7 +33,7 @@ Tensor<T>::Tensor (const Shape_Vector &shape_in)
 template<typename T>
 Tensor<T>::Tensor (const Shape_Vector &shape_in, std::shared_ptr<std::valarray<T>> data_in)
 {
-	assert( std::accumulate(shape_in.begin(), shape_in.end(), static_cast<std::size_t>(1), std::multiplies<std::size_t>() ) == data_in->size() );
+	assert( shape_in.get_shape_all() == data_in->size() );
 	this->shape = shape_in;
 	this->data = data_in;
 }
