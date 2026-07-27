@@ -10,6 +10,10 @@
 #include "../../global/gpu/GPU_Backend.h"
 #include "GPU_Data_Pack.h"
 
+#include <cstring>
+#include <type_traits>
+#include <utility>
+
 namespace RI
 {
 
@@ -21,6 +25,9 @@ class Output
 {
   public:
 	using Tdata_GPU = GPU_Backend::Type_to_GPU<Tdata_CPU>;
+	using Same_data_layout = std::integral_constant<
+		bool,
+		sizeof(Tdata_CPU)==sizeof(Tdata_GPU) && alignof(Tdata_CPU)==alignof(Tdata_GPU)>;
 
 	const Pack &insert(const TA &Aa, const TAC &Ab, const Shape_Vector &shape)
 	{
@@ -64,22 +71,7 @@ class Output
 			{
 				const Pack &pack = ptrList_B.second;
 				Tensor<Tdata_CPU> D_output(pack.shape);
-				if constexpr(sizeof(Tdata_CPU)==sizeof(Tdata_GPU) && alignof(Tdata_CPU)==alignof(Tdata_GPU))
-				{
-					std::memcpy(
-						D_output.ptr(),
-						h_data.data()+pack.pos,
-						pack.shape.get_shape_all()*sizeof(Tdata_CPU));
-				}
-				else
-				{
-					const std::size_t size = pack.shape.get_shape_all();
-					const auto ptr_src = h_data.begin()+pack.pos;
-					const auto ptr_dest = D_output.ptr();
-					for(std::size_t i=0; i<size; ++i)
-						ptr_dest[i] = GPU_Backend::data_to_CPU(ptr_src[i]);
-				}
-
+				download_data_impl(D_output, h_data, pack, Same_data_layout());
 
 				Tensor<Tdata_CPU> &D_result = Ds_result[ptrList_A.first][ptrList_B.first];
 				if(D_result.empty())
@@ -96,6 +88,33 @@ class Output
 		GPU_Backend::free(this->d_array);
 	}
 
+  private:
+	static void download_data_impl(
+		Tensor<Tdata_CPU> &D_output,
+		const std::vector<Tdata_GPU> &h_data,
+		const Pack &pack,
+		std::true_type)
+	{
+		std::memcpy(
+			D_output.ptr(),
+			h_data.data()+pack.pos,
+			pack.shape.get_shape_all()*sizeof(Tdata_CPU));
+	}
+
+	static void download_data_impl(
+		Tensor<Tdata_CPU> &D_output,
+		const std::vector<Tdata_GPU> &h_data,
+		const Pack &pack,
+		std::false_type)
+	{
+		const std::size_t size = pack.shape.get_shape_all();
+		const auto ptr_src = h_data.begin()+pack.pos;
+		const auto ptr_dest = D_output.ptr();
+		for(std::size_t i=0; i<size; ++i)
+			ptr_dest[i] = GPU_Backend::data_to_CPU(ptr_src[i]);
+	}
+
+  public:
 	std::size_t totalSize = 0;                  // 总的数据数量
 	Tdata_GPU *d_data = nullptr;					// 存储数据（GPU）
 	std::vector<Pack> h_array;					// 记录每个batch的Pack

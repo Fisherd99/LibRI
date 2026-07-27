@@ -11,6 +11,7 @@
 #include "GPU_Data_Pack.h"
 
 #include <omp.h>
+#include <type_traits>
 
 namespace RI
 {
@@ -23,6 +24,9 @@ class Input
 {
   public:
 	using Tdata_GPU = GPU_Backend::Type_to_GPU<Tdata_CPU>;
+	using Same_data_layout = std::integral_constant<
+		bool,
+		sizeof(Tdata_CPU)==sizeof(Tdata_GPU) && alignof(Tdata_CPU)==alignof(Tdata_GPU)>;
 
 	Input()
 	{
@@ -51,25 +55,9 @@ class Input
 
 	void insert_data(const Tensor<Tdata_CPU> &tensor)
 	{
-		if(this->tensor_insert[omp_get_thread_num()])
-		{
-			if constexpr(sizeof(Tdata_CPU)==sizeof(Tdata_GPU) && alignof(Tdata_CPU)==alignof(Tdata_GPU))
-			{
-				this->h_data[omp_get_thread_num()].insert(
-					this->h_data[omp_get_thread_num()].end(),
-					tensor.ptr(),
-					tensor.ptr() + tensor.shape.get_shape_all());
-			}
-			else
-			{
-				const std::size_t size = tensor.shape.get_shape_all();
-				this->h_data[omp_get_thread_num()].resize(this->h_data[omp_get_thread_num()].size() + size);
-				const auto ptr_dest = this->h_data[omp_get_thread_num()].end() - size;
-				const auto ptr_src = tensor.ptr();
-				for(std::size_t i=0; i<size; ++i)
-					ptr_dest[i] = GPU_Backend::data_to_GPU(ptr_src[i]);
-			}
-		}
+		const int thread_num = omp_get_thread_num();
+		if(this->tensor_insert[thread_num])
+			insert_data_impl(this->h_data[thread_num], tensor, Same_data_layout());
 	}
 
 	// 将对应的 C, V, D 放在 d_Cs, d_Vs, d_Ds 上
@@ -99,6 +87,32 @@ class Input
 		GPU_Backend::free(this->d_array);
 	}
 
+  private:
+	static void insert_data_impl(
+		std::vector<Tdata_GPU> &h_data,
+		const Tensor<Tdata_CPU> &tensor,
+		std::true_type)
+	{
+		h_data.insert(
+			h_data.end(),
+			tensor.ptr(),
+			tensor.ptr() + tensor.shape.get_shape_all());
+	}
+
+	static void insert_data_impl(
+		std::vector<Tdata_GPU> &h_data,
+		const Tensor<Tdata_CPU> &tensor,
+		std::false_type)
+	{
+		const std::size_t size = tensor.shape.get_shape_all();
+		h_data.resize(h_data.size() + size);
+		const auto ptr_dest = h_data.end() - size;
+		const auto ptr_src = tensor.ptr();
+		for(std::size_t i=0; i<size; ++i)
+			ptr_dest[i] = GPU_Backend::data_to_GPU(ptr_src[i]);
+	}
+
+  public:
 	std::vector<std::vector<Tdata_GPU>> h_data;		// 存储数据（CPU）
 	Tdata_GPU *d_data = nullptr;					// 存储数据（GPU）
 	Tdata_GPU **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
