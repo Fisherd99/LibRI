@@ -16,10 +16,12 @@ namespace RI
 namespace GPU_Data
 {
 
-template<typename TA, typename TAC, typename Tdata>
+template<typename TA, typename TAC, typename Tdata_CPU>
 class Mul
 {
   public:
+	using Tdata_GPU = GPU_Backend::Type_to_GPU<Tdata_CPU>;
+
 	const Pack &insert_1st(const TA &Aa, const TAC &Ab, const Shape_Vector &shape)
 	{
 		Pack &pack = this->ptrList[Aa][Ab];
@@ -38,10 +40,10 @@ class Mul
 	{
 		GPU_Backend::allocate(&this->d_data, this->totalSize);
 		GPU_Backend::memset(
-			this->d_data, 0, totalSize * sizeof(Tdata), queue);
+			this->d_data, 0, totalSize * sizeof(Tdata_GPU), queue);
 
 		const std::size_t batchCount = this->h_array_1.size();
-		std::vector<Tdata*> d_array_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
+		std::vector<Tdata_GPU*> d_array_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
 		for (std::size_t i = 0; i < batchCount; i++)
 			d_array_[i] = this->d_data + this->h_array_1[i].pos;
 		GPU_Backend::allocate(&this->d_array_1, batchCount);
@@ -64,7 +66,7 @@ class Mul
 	void upload_2nd(GPU_Backend::Queue queue)
 	{
 		const std::size_t batchCount = this->h_array_2.size();
-		std::vector<Tdata*> d_array_2_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
+		std::vector<Tdata_GPU*> d_array_2_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
 		for (std::size_t i = 0; i < batchCount; i++)
 			d_array_2_[i] = this->d_data + this->h_array_2[i].pos;
 		GPU_Backend::allocate(&this->d_array_2, batchCount);
@@ -80,11 +82,11 @@ class Mul
 	}
 
 	std::size_t totalSize = 0;                  // 总的数据数量
-	Tdata *d_data = nullptr;					// 存储数据（GPU）
+	Tdata_GPU *d_data = nullptr;					// 存储数据（GPU）
 	std::vector<Pack> h_array_1;				// 记录每个batch的Pack
 	std::vector<Pack> h_array_2;				// 记录每个batch的Pack
-	Tdata **d_array_1 = nullptr;				// 记录每个batch的 d_data 指针（GPU）
-	Tdata **d_array_2 = nullptr;				// 记录每个batch的 d_data 指针（GPU）
+	Tdata_GPU **d_array_1 = nullptr;				// 记录每个batch的 d_data 指针（GPU）
+	Tdata_GPU **d_array_2 = nullptr;				// 记录每个batch的 d_data 指针（GPU）
 	std::map<TA, std::map<TAC, Pack>> ptrList;	// 记录每个原子对的Pack
 };
 

@@ -16,10 +16,12 @@ namespace RI
 namespace GPU_Data
 {
 
-template<typename TA, typename TAC, typename Tdata>
+template<typename TA, typename TAC, typename Tdata_CPU>
 class Output
 {
   public:
+	using Tdata_GPU = GPU_Backend::Type_to_GPU<Tdata_CPU>;
+
 	const Pack &insert(const TA &Aa, const TAC &Ab, const Shape_Vector &shape)
 	{
 		Pack &pack = this->ptrList[Aa][Ab];
@@ -38,10 +40,10 @@ class Output
 	{
 		GPU_Backend::allocate(&this->d_data, this->totalSize);
 		GPU_Backend::memset(
-			this->d_data, 0, totalSize * sizeof(Tdata), queue);
+			this->d_data, 0, totalSize * sizeof(Tdata_GPU), queue);
 
 		const std::size_t batchCount = this->h_array.size();
-		std::vector<Tdata*> d_array_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
+		std::vector<Tdata_GPU*> d_array_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
 		for (std::size_t i = 0; i < batchCount; i++)
 			d_array_[i] = this->d_data + this->h_array[i].pos;
 		GPU_Backend::allocate(&this->d_array, batchCount);
@@ -49,10 +51,10 @@ class Output
 	}
 
 	void download(
-		std::map<TA, std::map<TAC, Tensor<Tdata>>> &Ds_result,
+		std::map<TA, std::map<TAC, Tensor<Tdata_CPU>>> &Ds_result,
 		GPU_Backend::Queue queue) const
 	{
-		std::vector<Tdata> h_data(this->totalSize);
+		std::vector<Tdata_GPU> h_data(this->totalSize);
 		GPU_Backend::download(
 			this->totalSize, this->d_data, h_data.data(), queue);
 		GPU_Backend::sync(queue);
@@ -61,10 +63,25 @@ class Output
 			for(const auto &ptrList_B : ptrList_A.second)
 			{
 				const Pack &pack = ptrList_B.second;
-				Tensor<Tdata> D_output(pack.shape);
-				std::memcpy(D_output.ptr(), h_data.data() + pack.pos, pack.shape.get_shape_all()*sizeof(Tdata));
+				Tensor<Tdata_CPU> D_output(pack.shape);
+				if constexpr(sizeof(Tdata_CPU)==sizeof(Tdata_GPU) && alignof(Tdata_CPU)==alignof(Tdata_GPU))
+				{
+					std::memcpy(
+						D_output.ptr(),
+						h_data.data()+pack.pos,
+						pack.shape.get_shape_all()*sizeof(Tdata_CPU));
+				}
+				else
+				{
+					const std::size_t size = pack.shape.get_shape_all();
+					const auto ptr_src = h_data.begin()+pack.pos;
+					const auto ptr_dest = D_output.ptr();
+					for(std::size_t i=0; i<size; ++i)
+						ptr_dest[i] = GPU_Backend::data_to_CPU(ptr_src[i]);
+				}
 
-				Tensor<Tdata> &D_result = Ds_result[ptrList_A.first][ptrList_B.first];
+
+				Tensor<Tdata_CPU> &D_result = Ds_result[ptrList_A.first][ptrList_B.first];
 				if(D_result.empty())
 					D_result = std::move(D_output);
 				else
@@ -80,9 +97,9 @@ class Output
 	}
 
 	std::size_t totalSize = 0;                  // 总的数据数量
-	Tdata *d_data = nullptr;					// 存储数据（GPU）
+	Tdata_GPU *d_data = nullptr;					// 存储数据（GPU）
 	std::vector<Pack> h_array;					// 记录每个batch的Pack
-	Tdata **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
+	Tdata_GPU **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
 	std::map<TA, std::map<TAC, Pack>> ptrList;	// 记录每个原子对的Pack
 };
 

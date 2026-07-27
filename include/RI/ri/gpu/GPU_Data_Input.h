@@ -9,6 +9,7 @@
 
 #include "../../global/gpu/GPU_Backend.h"
 #include "GPU_Data_Pack.h"
+
 #include <omp.h>
 
 namespace RI
@@ -17,17 +18,19 @@ namespace RI
 namespace GPU_Data
 {
 
-template<typename TA, typename TAC, typename Tdata>
+template<typename TA, typename TAC, typename Tdata_CPU>
 class Input
 {
   public:
+	using Tdata_GPU = GPU_Backend::Type_to_GPU<Tdata_CPU>;
+
 	Input()
 	{
 		this->h_data.resize(omp_get_max_threads());
 		this->tensor_insert.resize(omp_get_max_threads(), false);
 	}
 
-	const Pack & insert(const TA &Aa, const TAC &Ab, const Tensor<Tdata> &tensor)
+	const Pack & insert(const TA &Aa, const TAC &Ab, const Tensor<Tdata_CPU> &tensor)
 	{
 		Pack &pack = this->ptrList[Aa][Ab];
 		if(!pack.exist)
@@ -46,13 +49,27 @@ class Input
 		return pack;
 	}
 
-	void insert_data(const Tensor<Tdata> &tensor)
+	void insert_data(const Tensor<Tdata_CPU> &tensor)
 	{
 		if(this->tensor_insert[omp_get_thread_num()])
-			this->h_data[omp_get_thread_num()].insert(
-				this->h_data[omp_get_thread_num()].end(),
-				tensor.ptr(),
-				tensor.ptr() + tensor.shape.get_shape_all());
+		{
+			if constexpr(sizeof(Tdata_CPU)==sizeof(Tdata_GPU) && alignof(Tdata_CPU)==alignof(Tdata_GPU))
+			{
+				this->h_data[omp_get_thread_num()].insert(
+					this->h_data[omp_get_thread_num()].end(),
+					tensor.ptr(),
+					tensor.ptr() + tensor.shape.get_shape_all());
+			}
+			else
+			{
+				const std::size_t size = tensor.shape.get_shape_all();
+				this->h_data[omp_get_thread_num()].resize(this->h_data[omp_get_thread_num()].size() + size);
+				const auto ptr_dest = this->h_data[omp_get_thread_num()].end() - size;
+				const auto ptr_src = tensor.ptr();
+				for(std::size_t i=0; i<size; ++i)
+					ptr_dest[i] = GPU_Backend::data_to_GPU(ptr_src[i]);
+			}
+		}
 	}
 
 	// 将对应的 C, V, D 放在 d_Cs, d_Vs, d_Ds 上
@@ -69,7 +86,7 @@ class Input
 				this->d_data+h_data_begin[i], queue);
 
 		const std::size_t batchCount = this->h_array.size();
-		std::vector<Tdata*> d_array_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
+		std::vector<Tdata_GPU*> d_array_(batchCount);							// 记录每个batch的 d_data 指针（CPU）
 		for(std::size_t i=0; i<batchCount; ++i)
 			d_array_[i] = this->d_data + this->h_array[i].pos + h_data_begin[this->h_array[i].thread_num];
 		GPU_Backend::allocate(&this->d_array, batchCount);
@@ -82,9 +99,9 @@ class Input
 		GPU_Backend::free(this->d_array);
 	}
 
-	std::vector<std::vector<Tdata>> h_data;		// 存储数据（CPU）
-	Tdata *d_data = nullptr;					// 存储数据（GPU）
-	Tdata **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
+	std::vector<std::vector<Tdata_GPU>> h_data;		// 存储数据（CPU）
+	Tdata_GPU *d_data = nullptr;					// 存储数据（GPU）
+	Tdata_GPU **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
 	std::vector<Pack> h_array;					// 记录每个batch的Pack
 	std::map<TA, std::map<TAC, Pack>> ptrList;	// 记录每个原子对的Pack
 	std::vector<bool> tensor_insert;			// 记录是否当前张量需要insert_data

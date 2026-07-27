@@ -59,6 +59,26 @@ constexpr Transpose Trans = MagmaTrans;
 constexpr Transpose ConjTrans = MagmaConjTrans;
 #endif
 
+template<typename T_CPU> struct Type_to_GPU_Helper { using T_GPU = T_CPU; };
+#ifdef __MAGMA_RI
+template<> struct Type_to_GPU_Helper<std::complex<float>> { using T_GPU = magmaFloatComplex; };
+template<> struct Type_to_GPU_Helper<std::complex<double>> { using T_GPU = magmaDoubleComplex; };
+#endif
+template <typename T_CPU> using Type_to_GPU = typename Type_to_GPU_Helper<T_CPU>::T_GPU;
+
+template<typename T_GPU> struct Type_to_CPU_Helper { using T_CPU = T_GPU; };
+#ifdef __MAGMA_RI
+template<> struct Type_to_CPU_Helper<magmaFloatComplex> { using T_CPU = std::complex<float>; };
+template<> struct Type_to_CPU_Helper<magmaDoubleComplex> { using T_CPU = std::complex<double>; };
+#endif
+template <typename T_GPU> using Type_to_CPU = typename Type_to_CPU_Helper<T_GPU>::T_CPU;
+
+#ifdef __MAGMA_RI
+template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu) { return {std::real(data_cpu), std::imag(data_cpu)}; }
+template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu) { return {MAGMA_C_REAL(data_gpu), MAGMA_C_IMAG(data_gpu)}; }
+#endif
+
+
 inline void validate_local_gpu_count(const MPI_Comm& communicator)
 {
     MPI_Comm local_communicator = MPI_COMM_NULL;
@@ -120,7 +140,7 @@ class Context
 #elif defined(__MAGMA_RI)
         if (queue_ != nullptr)
             magma_queue_destroy(queue_);
-        MAGMA_CHECK(magma_finalize());
+        magma_finalize();
 #endif
     }
 

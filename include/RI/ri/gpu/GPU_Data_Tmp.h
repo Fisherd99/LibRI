@@ -16,10 +16,12 @@ namespace RI
 namespace GPU_Data
 {
 
-template<typename TA, typename TAC, typename Tdata>
+template<typename TA, typename TAC, typename Tdata_CPU>
 class Tmp
 {
   public:
+	using Tdata_GPU = GPU_Backend::Type_to_GPU<Tdata_CPU>;
+
 	const Pack &insert(const Shape_Vector &shape)
 	{
 		Pack pack;
@@ -34,15 +36,15 @@ class Tmp
 	std::vector<GPU_Backend::Int> upload(
 		const std::size_t memory_limit, GPU_Backend::Queue queue)
 	{
-		const std::size_t size_limit = std::min(this->totalSize, memory_limit / sizeof(Tdata));
+		const std::size_t size_limit = std::min(this->totalSize, memory_limit / sizeof(Tdata_GPU));
 		const std::vector<std::vector<Pack>> h_array_segments = segment_points(this->h_array, size_limit);
 
 		GPU_Backend::allocate(&this->d_data, size_limit);
 		GPU_Backend::memset(
-			this->d_data, 0, size_limit * sizeof(Tdata), queue);
+			this->d_data, 0, size_limit * sizeof(Tdata_GPU), queue);
 
 		const std::size_t batchCount = this->h_array.size();
-		std::vector<Tdata*> d_array_;							// 记录每个batch的 d_data 指针（CPU）
+		std::vector<Tdata_GPU*> d_array_;							// 记录每个batch的 d_data 指针（CPU）
 		for(const auto &h_array_segment : h_array_segments)
 			for(const Pack &pack : h_array_segment)
 				d_array_.push_back(this->d_data + pack.pos);
@@ -86,9 +88,9 @@ class Tmp
 	}
 
 	std::size_t totalSize = 0;					// 总的数据数量
-	Tdata *d_data = nullptr;					// 存储数据（GPU）
+	Tdata_GPU *d_data = nullptr;					// 存储数据（GPU）
 	std::vector<Pack> h_array;					// 记录每个batch的Pack
-	Tdata **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
+	Tdata_GPU **d_array = nullptr;					// 记录每个batch的 d_data 指针（GPU）
 };
 
 }

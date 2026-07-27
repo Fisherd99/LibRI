@@ -69,16 +69,8 @@ namespace LRI_Loop3_Test
 	}
 
 	template<typename Tdata>
-	void main(int argc, char *argv[])
+	void test_loop3(const RI::LRI_Cal_Mode cal_mode)
 	{
-		int mpi_init_provide;
-		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mpi_init_provide);
-
-		if(RI::MPI_Wrapper::mpi_get_rank(MPI_COMM_WORLD)!=0)
-		{
-			MPI_Finalize();
-			return;
-		}
 
 		auto print_result = [](const std::string &label, const RI::Tensor<Tdata> &D1, const RI::Tensor<Tdata> &D2)
 		{
@@ -107,7 +99,7 @@ namespace LRI_Loop3_Test
 		Ds_ab[RI::Label::ab::a2b2][Aa2][{Ab2,{0}}] = init_tensor<Tdata>({Na2,Nb2});
 
 		RI::LRI<int,int,Ndim,Tdata> lri;
-		lri.cal_mode = RI::LRI_Cal_Mode::GPU;
+		lri.cal_mode = cal_mode;
 		lri.parallel = std::make_shared<Parallel_LRI_test<int,int,Ndim,Tdata>>();
 		lri.set_parallel( MPI_COMM_WORLD, {}, {}, {1}, RI::Global_Func::to_vector(RI::Label::array_ab_ab) );
 
@@ -401,6 +393,23 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
 			print_result("a1b2_a2b1", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
+	}
+	
+
+	template<typename Tdata>
+	void main(int argc, char *argv[])
+	{
+		int mpi_init_provide;
+		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mpi_init_provide);
+
+		const std::vector<RI::LRI_Cal_Mode> cal_modes = {
+			RI::LRI_Cal_Mode::CPU
+			#ifdef __GPU_RI
+			, RI::LRI_Cal_Mode::GPU
+			#endif
+		};
+		for(const RI::LRI_Cal_Mode cal_mode: cal_modes)
+			test_loop3<Tdata>(cal_mode);
 
 		MPI_Finalize();
 	}
