@@ -12,9 +12,10 @@
 #endif
 
 #ifdef __DDLA_RI
-#ifndef DDLA_USE_HIP
-#error "__DDLA_RI requires DDLA_USE_HIP"
+#if (defined(DDLA_USE_CUDA) + defined(DDLA_USE_HIP)) != 1
+#error "__DDLA_RI requires exactly one of DDLA_USE_CUDA or DDLA_USE_HIP"
 #endif
+#include <ddla/ddla_connector.h>
 #include <ddla/ddla_handle_t.h>
 #include <ddla/gemmVbatched.h>
 
@@ -76,6 +77,9 @@ template <typename T_GPU> using Type_to_CPU = typename Type_to_CPU_Helper<T_GPU>
 #ifdef __MAGMA_RI
 template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu) { return {std::real(data_cpu), std::imag(data_cpu)}; }
 template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu) { return {MAGMA_C_REAL(data_gpu), MAGMA_C_IMAG(data_gpu)}; }
+#else
+template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu) { return data_cpu; }
+template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu) { return data_gpu; }
 #endif
 
 
@@ -186,9 +190,9 @@ inline void upload(
     if (count == 0)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(hipMemcpyAsync(
+    ddla::DEVICE_CHECK(deviceMemcpyAsync(
         device_data, host_data, count * sizeof(T),
-        hipMemcpyHostToDevice, stream(queue)));
+        ddla::deviceMemcpyHostToDevice, stream(queue)));
 #elif defined(__MAGMA_RI)
     magma_setvector_async(
         count, sizeof(T), host_data, 1, device_data, 1, queue);
@@ -202,9 +206,9 @@ inline void download(
     if (count == 0)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(hipMemcpyAsync(
+    ddla::DEVICE_CHECK(deviceMemcpyAsync(
         host_data, device_data, count * sizeof(T),
-        hipMemcpyDeviceToHost, stream(queue)));
+        ddla::deviceMemcpyDeviceToHost, stream(queue)));
 #elif defined(__MAGMA_RI)
     magma_getvector_async(
         count, sizeof(T), device_data, 1, host_data, 1, queue);
@@ -216,7 +220,7 @@ inline void memset(void* pointer, int value, std::size_t bytes, Queue queue)
     if (bytes == 0)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(hipMemsetAsync(
+    ddla::DEVICE_CHECK(deviceMemsetAsync(
         pointer, value, bytes, stream(queue)));
 #elif defined(__MAGMA_RI)
     MAGMA_CHECK(magma_memset(pointer, value, bytes));
