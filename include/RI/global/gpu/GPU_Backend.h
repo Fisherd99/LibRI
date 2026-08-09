@@ -78,8 +78,18 @@ template <typename T_GPU> using Type_to_CPU = typename Type_to_CPU_Helper<T_GPU>
 template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu) { return {std::real(data_cpu), std::imag(data_cpu)}; }
 template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu) { return {MAGMA_C_REAL(data_gpu), MAGMA_C_IMAG(data_gpu)}; }
 #else
-template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu) { return data_cpu; }
-template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu) { return data_gpu; }
+template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu)
+{
+    (void)data_cpu; // mark as used to suppress the unused-parameter warning; the guard intentionally always throws
+    throw std::invalid_argument(std::string(__FILE__) + " line " + std::to_string(__LINE__)
+        + ": data_to_GPU should not be used in non-MAGMA (__DDLA_RI) builds");
+}
+template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu)
+{
+    (void)data_gpu; // mark as used to suppress the unused-parameter warning; the guard intentionally always throws
+    throw std::invalid_argument(std::string(__FILE__) + " line " + std::to_string(__LINE__)
+        + ": data_to_CPU should not be used in non-MAGMA (__DDLA_RI) builds");
+}
 #endif
 
 
