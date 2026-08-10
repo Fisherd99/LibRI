@@ -69,16 +69,16 @@ namespace LRI_Loop3_Test
 	}
 
 	template<typename Tdata>
-	void main(int argc, char *argv[])
+	void test_loop3(const RI::LRI_Cal_Mode cal_mode)
 	{
-		int mpi_init_provide;
-		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mpi_init_provide);
 
-		if(RI::MPI_Wrapper::mpi_get_rank(MPI_COMM_WORLD)!=0)
+		auto print_result = [](const std::string &label, const RI::Tensor<Tdata> &D1, const RI::Tensor<Tdata> &D2)
 		{
-			MPI_Finalize();
-			return;
-		}
+			std::cout<<label<<"\t"<<(D1 - D2).norm(2)<<std::endl;
+			//std::cout<<"@ "<<label<<std::endl;
+			//std::cout<<D1<<std::endl;
+			//std::cout<<D2<<std::endl<<std::endl;
+		};
 
 		constexpr std::size_t Ndim = 1;
 		const std::size_t Na0=2, Nb0=3, Na1=4, Nb1=5, Na2=6, Nb2=7;
@@ -99,6 +99,7 @@ namespace LRI_Loop3_Test
 		Ds_ab[RI::Label::ab::a2b2][Aa2][{Ab2,{0}}] = init_tensor<Tdata>({Na2,Nb2});
 
 		RI::LRI<int,int,Ndim,Tdata> lri;
+		lri.cal_mode = cal_mode;
 		lri.parallel = std::make_shared<Parallel_LRI_test<int,int,Ndim,Tdata>>();
 		lri.set_parallel( MPI_COMM_WORLD, {}, {}, {1}, RI::Global_Func::to_vector(RI::Label::array_ab_ab) );
 
@@ -118,7 +119,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b0][Aa01][{Ab01,{0}}](ia0,ib0)
 					* Ds_ab[RI::Label::ab::a1b1][Aa01][{Ab01,{0}}](ia1,ib1)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b0_a1b1\t"<<(Ds_result[Aa2][{Ab2,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b0_a1b1", Ds_result[Aa2][{Ab2,{0}}], D_test);
 		}
 
 		{
@@ -134,7 +135,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b1][Aa01][{Ab01,{0}}](ia0,ib1)
 					* Ds_ab[RI::Label::ab::a1b0][Aa01][{Ab01,{0}}](ia1,ib0)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b1_a1b0\t"<<(Ds_result[Aa2][{Ab2,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b1_a1b0", Ds_result[Aa2][{Ab2,{0}}], D_test);
 		}
 
 		{
@@ -150,7 +151,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b0][Aa01][{Ab01,{0}}](ia0,ib0)
 					* Ds_ab[RI::Label::ab::a2b1][Aa2][{Ab01,{0}}](ia2,ib1)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b0_a2b1\t"<<(Ds_result[Aa01][{Ab2,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b0_a2b1", Ds_result[Aa01][{Ab2,{0}}], D_test);
 		}
 
 		{
@@ -166,7 +167,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b1][Aa01][{Ab01,{0}}](ia0,ib1)
 					* Ds_ab[RI::Label::ab::a2b0][Aa2][{Ab01,{0}}](ia2,ib0)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b1_a2b0\t"<<(Ds_result[Aa01][{Ab2,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b1_a2b0", Ds_result[Aa01][{Ab2,{0}}], D_test);
 		}
 
 		{
@@ -182,7 +183,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a1b0][Aa01][{Ab01,{0}}](ia1,ib0)
 					* Ds_ab[RI::Label::ab::a2b1][Aa2][{Ab01,{0}}](ia2,ib1)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a1b0_a2b1\t"<<(Ds_result[Aa01][{Ab2,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a1b0_a2b1", Ds_result[Aa01][{Ab2,{0}}], D_test);
 		}
 
 		{
@@ -198,7 +199,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a1b1][Aa01][{Ab01,{0}}](ia1,ib1)
 					* Ds_ab[RI::Label::ab::a2b0][Aa2][{Ab01,{0}}](ia2,ib0)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a1b1_a2b0\t"<<(Ds_result[Aa01][{Ab2,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a1b1_a2b0", Ds_result[Aa01][{Ab2,{0}}], D_test);
 		}
 
 		{
@@ -214,7 +215,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b0][Aa01][{Ab01,{0}}](ia0,ib0)
 					* Ds_ab[RI::Label::ab::a1b2][Aa01][{Ab2,{0}}](ia1,ib2)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b0_a1b2\t"<<(Ds_result[Aa2][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b0_a1b2", Ds_result[Aa2][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -230,7 +231,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b1][Aa01][{Ab01,{0}}](ia0,ib1)
 					* Ds_ab[RI::Label::ab::a1b2][Aa01][{Ab2,{0}}](ia1,ib2)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b1_a1b2\t"<<(Ds_result[Aa2][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b1_a1b2", Ds_result[Aa2][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -246,7 +247,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b2][Aa01][{Ab2,{0}}](ia0,ib2)
 					* Ds_ab[RI::Label::ab::a1b0][Aa01][{Ab01,{0}}](ia1,ib0)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b2_a1b0\t"<<(Ds_result[Aa2][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b2_a1b0", Ds_result[Aa2][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -262,7 +263,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b2][Aa01][{Ab2,{0}}](ia0,ib2)
 					* Ds_ab[RI::Label::ab::a1b1][Aa01][{Ab01,{0}}](ia1,ib1)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b2_a1b1\t"<<(Ds_result[Aa2][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b2_a1b1", Ds_result[Aa2][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -278,7 +279,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b0][Aa01][{Ab01,{0}}](ia0,ib0)
 					* Ds_ab[RI::Label::ab::a2b2][Aa2][{Ab2,{0}}](ia2,ib2)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b0_a2b2\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b0_a2b2", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -294,7 +295,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b1][Aa01][{Ab01,{0}}](ia0,ib1)
 					* Ds_ab[RI::Label::ab::a2b2][Aa2][{Ab2,{0}}](ia2,ib2)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b1_a2b2\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b1_a2b2", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -310,7 +311,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b2][Aa01][{Ab2,{0}}](ia0,ib2)
 					* Ds_ab[RI::Label::ab::a2b0][Aa2][{Ab01,{0}}](ia2,ib0)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b2_a2b0\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b2_a2b0", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -326,7 +327,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a0b2][Aa01][{Ab2,{0}}](ia0,ib2)
 					* Ds_ab[RI::Label::ab::a2b1][Aa2][{Ab01,{0}}](ia2,ib1)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a0b2_a2b1\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a0b2_a2b1", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -342,7 +343,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a1b0][Aa01][{Ab01,{0}}](ia1,ib0)
 					* Ds_ab[RI::Label::ab::a2b2][Aa2][{Ab2,{0}}](ia2,ib2)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a1b0_a2b2\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a1b0_a2b2", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -358,7 +359,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a1b1][Aa01][{Ab01,{0}}](ia1,ib1)
 					* Ds_ab[RI::Label::ab::a2b2][Aa2][{Ab2,{0}}](ia2,ib2)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a1b1_a2b2\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a1b1_a2b2", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -374,7 +375,7 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a1b2][Aa01][{Ab2,{0}}](ia1,ib2)
 					* Ds_ab[RI::Label::ab::a2b0][Aa2][{Ab01,{0}}](ia2,ib0)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a1b2_a2b0\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a1b2_a2b0", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
 
 		{
@@ -390,8 +391,25 @@ namespace LRI_Loop3_Test
 					* Ds_ab[RI::Label::ab::a1b2][Aa01][{Ab2,{0}}](ia1,ib2)
 					* Ds_ab[RI::Label::ab::a2b1][Aa2][{Ab01,{0}}](ia2,ib1)
 					* Ds_ab[RI::Label::ab::b][Ab01][{Ab2,{0}}](ib0,ib1,ib2);
-			std::cout<<"a1b2_a2b1\t"<<(Ds_result[Aa01][{Ab01,{0}}] - D_test).norm(2)<<std::endl;
+			print_result("a1b2_a2b1", Ds_result[Aa01][{Ab01,{0}}], D_test);
 		}
+	}
+	
+
+	template<typename Tdata>
+	void main(int argc, char *argv[])
+	{
+		int mpi_init_provide;
+		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mpi_init_provide);
+
+		const std::vector<RI::LRI_Cal_Mode> cal_modes = {
+			RI::LRI_Cal_Mode::CPU
+			#ifdef __GPU_RI
+			, RI::LRI_Cal_Mode::GPU
+			#endif
+		};
+		for(const RI::LRI_Cal_Mode cal_mode: cal_modes)
+			test_loop3<Tdata>(cal_mode);
 
 		MPI_Finalize();
 	}

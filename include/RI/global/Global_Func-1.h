@@ -7,6 +7,10 @@
 
 #include "Tensor.h"
 
+#ifdef __GPU_RI
+#include "../ri/gpu/GPU_Data_Pack.h"
+#endif
+
 #include <vector>
 #include <map>
 #include <set>
@@ -24,15 +28,31 @@ namespace Global_Func
 	//   <=>
 	// tensor = m.at(i).at(j).at(k);
 	// Peize Lin add 2022.05.26
-	template<typename Tkey, typename Tdata,
-		typename std::enable_if<std::is_arithmetic<Tdata>::value,bool>::type=0>
-	inline const Tdata &find(
-		const std::map<Tkey, Tdata> &m,
+	template<typename Tdata>
+	inline const Tdata &find(const Tdata &data)
+	{
+		return data;
+	}
+	template<typename Tkey, typename Tvalue,
+		typename std::enable_if<std::is_arithmetic<Tvalue>::value,bool>::type=0>
+	inline const Tvalue &find(
+		const std::map<Tkey, Tvalue> &m,
 		const Tkey &key)
 	{
 		const auto &ptr = m.find(key);
 		if(ptr==m.end())
-			return ZERO<Tdata>;
+			return ZERO<Tvalue>;
+		else
+			return ptr->second;
+	}
+	template<typename Tkey, typename Tvalue>
+	inline Tvalue*const &find(
+		const std::map<Tkey, Tvalue*> &m,
+		const Tkey &key)
+	{
+		const auto &ptr = m.find(key);
+		if(ptr==m.end())
+			return ZERO<Tvalue*>;
 		else
 			return ptr->second;
 	}
@@ -70,11 +90,19 @@ namespace Global_Func
 			return ptr->second;
 	}
 
-	template<typename T>
-	const T &find(const T &data)
+	#ifdef __GPU_RI
+	template<typename Tkey>
+	inline const GPU_Data::Pack &find(
+		const std::map<Tkey, GPU_Data::Pack> &m,
+		const Tkey &key)
 	{
-		return data;
+		const auto &ptr = m.find(key);
+		if(ptr==m.end())
+			return ZERO<GPU_Data::Pack>;
+		else
+			return ptr->second;
 	}
+	#endif
 
 	template<typename Tkey0, typename Tkey1, typename Tvalue, typename... Tkeys>
 	inline const auto &find(
