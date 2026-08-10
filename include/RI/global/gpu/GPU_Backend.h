@@ -8,22 +8,22 @@
 //  LibRI GPU backend adapter
 
 #if (defined(__MAGMA_RI) + defined(__DDLA_RI)) != 1
-#error "Define exactly one of __MAGMA_RI or __DDLA_RI"
+    #error "Define exactly one of __MAGMA_RI or __DDLA_RI"
 #endif
 
 #ifdef __DDLA_RI
-#if (defined(DDLA_USE_CUDA) + defined(DDLA_USE_HIP)) != 1
-#error "__DDLA_RI requires exactly one of DDLA_USE_CUDA or DDLA_USE_HIP"
-#endif
-#include <ddla/ddla_connector.h>
-#include <ddla/ddla_handle_t.h>
-#include <ddla/gemmVbatched.h>
+    #if (defined(DDLA_USE_CUDA) + defined(DDLA_USE_HIP)) != 1
+        #error "__DDLA_RI requires exactly one of DDLA_USE_CUDA or DDLA_USE_HIP"
+    #endif
+    #include <ddla/ddla_connector.h>
+    #include <ddla/ddla_handle_t.h>
+    #include <ddla/gemmVbatched.h>
 
 #elif defined(__MAGMA_RI)
-#include "Magmablas_Interface-Contiguous.h"
-#include "Magma_Wrapper.h"
-#include <magma_v2.h>
-#define MAGMA_CHECK_RI(x) if((x)!=MAGMA_SUCCESS)	throw std::runtime_error(std::string(__FILE__)+" line "+std::to_string(__LINE__)+" error "+std::string(magma_strerror(x)));
+    #include "Magmablas_Interface-Contiguous.h"
+    #include "Magma_Wrapper.h"
+    #include <magma_v2.h>
+    #define MAGMA_CHECK_RI(x) if((x)!=MAGMA_SUCCESS)	throw std::runtime_error(std::string(__FILE__)+" line "+std::to_string(__LINE__)+" error "+std::string(magma_strerror(x)));
 #endif
 
 #include <mpi.h>
@@ -40,56 +40,55 @@ namespace GPU_Backend
 {
 
 #ifdef __DDLA_RI
-using Int = int;
-using Transpose = ddla::deblasOperation_t;
-using Queue = ddla::DdlaHandle_t;
-constexpr Transpose NoTrans = ddla::DEBLAS_OP_N;
-constexpr Transpose Trans = ddla::DEBLAS_OP_T;
-constexpr Transpose ConjTrans = ddla::DEBLAS_OP_C;
+    using Int = int;
+    using Transpose = ddla::deblasOperation_t;
+    using Queue = ddla::DdlaHandle_t;
+    constexpr Transpose NoTrans = ddla::DEBLAS_OP_N;
+    constexpr Transpose Trans = ddla::DEBLAS_OP_T;
+    constexpr Transpose ConjTrans = ddla::DEBLAS_OP_C;
 
-inline ddla::deviceStream_t stream(Queue queue)
-{
-    return static_cast<ddla::deviceStream_t>(ddla::ddla_get_stream(queue));
-}
+    inline ddla::deviceStream_t stream(Queue queue)
+    {
+        return static_cast<ddla::deviceStream_t>(ddla::ddla_get_stream(queue));
+    }
 #elif defined(__MAGMA_RI)
-using Int = magma_int_t;
-using Transpose = magma_trans_t;
-using Queue = magma_queue_t;
-constexpr Transpose NoTrans = MagmaNoTrans;
-constexpr Transpose Trans = MagmaTrans;
-constexpr Transpose ConjTrans = MagmaConjTrans;
+    using Int = magma_int_t;
+    using Transpose = magma_trans_t;
+    using Queue = magma_queue_t;
+    constexpr Transpose NoTrans = MagmaNoTrans;
+    constexpr Transpose Trans = MagmaTrans;
+    constexpr Transpose ConjTrans = MagmaConjTrans;
 #endif
 
 template<typename T_CPU> struct Type_to_GPU_Helper { using T_GPU = T_CPU; };
 #ifdef __MAGMA_RI
-template<> struct Type_to_GPU_Helper<std::complex<float>> { using T_GPU = magmaFloatComplex; };
-template<> struct Type_to_GPU_Helper<std::complex<double>> { using T_GPU = magmaDoubleComplex; };
+    template<> struct Type_to_GPU_Helper<std::complex<float>> { using T_GPU = magmaFloatComplex; };
+    template<> struct Type_to_GPU_Helper<std::complex<double>> { using T_GPU = magmaDoubleComplex; };
 #endif
 template <typename T_CPU> using Type_to_GPU = typename Type_to_GPU_Helper<T_CPU>::T_GPU;
 
 template<typename T_GPU> struct Type_to_CPU_Helper { using T_CPU = T_GPU; };
 #ifdef __MAGMA_RI
-template<> struct Type_to_CPU_Helper<magmaFloatComplex> { using T_CPU = std::complex<float>; };
-template<> struct Type_to_CPU_Helper<magmaDoubleComplex> { using T_CPU = std::complex<double>; };
+    template<> struct Type_to_CPU_Helper<magmaFloatComplex> { using T_CPU = std::complex<float>; };
+    template<> struct Type_to_CPU_Helper<magmaDoubleComplex> { using T_CPU = std::complex<double>; };
 #endif
 template <typename T_GPU> using Type_to_CPU = typename Type_to_CPU_Helper<T_GPU>::T_CPU;
 
-#ifdef __MAGMA_RI
-template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu) { return {std::real(data_cpu), std::imag(data_cpu)}; }
-template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu) { return {MAGMA_C_REAL(data_gpu), MAGMA_C_IMAG(data_gpu)}; }
-#else
 template<typename T_CPU> Type_to_GPU<T_CPU> data_to_GPU(const T_CPU data_cpu)
 {
     (void)data_cpu; // mark as used to suppress the unused-parameter warning; the guard intentionally always throws
-    throw std::invalid_argument(std::string(__FILE__) + " line " + std::to_string(__LINE__)
-        + ": data_to_GPU should not be used in non-MAGMA (__DDLA_RI) builds");
+    throw std::invalid_argument(std::string(__FILE__) + " line " + std::to_string(__LINE__) + ": data_to_GPU should not be used");
 }
 template<typename T_GPU> Type_to_CPU<T_GPU> data_to_CPU(const T_GPU data_gpu)
 {
     (void)data_gpu; // mark as used to suppress the unused-parameter warning; the guard intentionally always throws
-    throw std::invalid_argument(std::string(__FILE__) + " line " + std::to_string(__LINE__)
-        + ": data_to_CPU should not be used in non-MAGMA (__DDLA_RI) builds");
+    throw std::invalid_argument(std::string(__FILE__) + " line " + std::to_string(__LINE__) + ": data_to_CPU should not be used");
 }
+#ifdef __MAGMA_RI
+    template<> magmaFloatComplex    data_to_GPU(const std::complex<float>  data_cpu) { return {std::real(data_cpu), std::imag(data_cpu)}; }
+    template<> magmaDoubleComplex   data_to_GPU(const std::complex<double> data_cpu) { return {std::real(data_cpu), std::imag(data_cpu)}; }
+    template<> std::complex<float>  data_to_CPU(const magmaFloatComplex    data_gpu) { return {MAGMA_C_REAL(data_gpu), MAGMA_C_IMAG(data_gpu)}; }
+    template<> std::complex<double> data_to_CPU(const magmaDoubleComplex   data_gpu) { return {MAGMA_C_REAL(data_gpu), MAGMA_C_IMAG(data_gpu)}; }
 #endif
 
 
