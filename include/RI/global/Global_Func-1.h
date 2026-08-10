@@ -5,24 +5,38 @@
 
 #pragma once
 
-#include "Tensor.h"
-
-#ifdef __GPU_RI
-#include "../ri/gpu/GPU_Data_Pack.h"
-#endif
-
-#include <vector>
 #include <map>
+#include <type_traits>
 #include <set>
 #include <array>
-#include <type_traits>
+#include <vector>
 
 namespace RI
 {
 
 namespace Global_Func
 {
-	template<typename T> const T ZERO{};
+	template<typename T>
+	inline const T &zero()
+	{
+		static const T value{};
+		return value;
+	}
+
+	template<typename Tdata, typename... Tkeys>
+	struct Find_Result;
+
+	template<typename Tdata>
+	struct Find_Result<Tdata>
+	{
+		using type = Tdata;
+	};
+
+	template<typename Tkey, typename Tvalue, typename... Tkeys>
+	struct Find_Result<std::map<Tkey, Tvalue>, Tkey, Tkeys...>
+	{
+		using type = typename Find_Result<Tvalue, Tkeys...>::type;
+	};
 
 	// tensor = find(m,i,j,k);
 	//   <=>
@@ -33,87 +47,28 @@ namespace Global_Func
 	{
 		return data;
 	}
-	template<typename Tkey, typename Tvalue,
-		typename std::enable_if<std::is_arithmetic<Tvalue>::value,bool>::type=0>
+	template<typename Tkey, typename Tvalue>
 	inline const Tvalue &find(
 		const std::map<Tkey, Tvalue> &m,
 		const Tkey &key)
 	{
 		const auto &ptr = m.find(key);
 		if(ptr==m.end())
-			return ZERO<Tvalue>;
+			return zero<Tvalue>();
 		else
 			return ptr->second;
 	}
-	template<typename Tkey, typename Tvalue>
-	inline Tvalue*const &find(
-		const std::map<Tkey, Tvalue*> &m,
-		const Tkey &key)
-	{
-		const auto &ptr = m.find(key);
-		if(ptr==m.end())
-			return ZERO<Tvalue*>;
-		else
-			return ptr->second;
-	}
-	template<typename Tkey, typename Tdata>
-	inline const Tensor<Tdata> &find(
-		const std::map<Tkey, Tensor<Tdata>> &m,
-		const Tkey &key)
-	{
-		const auto &ptr = m.find(key);
-		if(ptr==m.end())
-			return ZERO<Tensor<Tdata>>;
-		else
-			return ptr->second;
-	}
-	template<typename Tkey, typename Tdata, std::size_t Ndim>
-	inline const std::array<Tdata,Ndim> &find(
-		const std::map<Tkey, std::array<Tdata,Ndim>> &m,
-		const Tkey &key)
-	{
-		const auto &ptr = m.find(key);
-		if(ptr==m.end())
-			return ZERO<std::array<Tdata,Ndim>>;
-		else
-			return ptr->second;
-	}
-	template<typename Tkey, typename Tdata>
-	inline const std::vector<Tdata> &find(
-		const std::map<Tkey, std::vector<Tdata>> &m,
-		const Tkey &key)
-	{
-		const auto &ptr = m.find(key);
-		if(ptr==m.end())
-			return ZERO<std::vector<Tdata>>;
-		else
-			return ptr->second;
-	}
-
-	#ifdef __GPU_RI
-	template<typename Tkey>
-	inline const GPU_Data::Pack &find(
-		const std::map<Tkey, GPU_Data::Pack> &m,
-		const Tkey &key)
-	{
-		const auto &ptr = m.find(key);
-		if(ptr==m.end())
-			return ZERO<GPU_Data::Pack>;
-		else
-			return ptr->second;
-	}
-	#endif
 
 	template<typename Tkey0, typename Tkey1, typename Tvalue, typename... Tkeys>
-	inline const auto &find(
+	inline auto find(
 		const std::map<Tkey0, std::map<Tkey1,Tvalue>> &m,
 		const Tkey0 &key0,
 		const Tkeys&... keys)
-//	-> decltype(find( m.find(key)->second, keys... ))			// why error for C++ compiler high version
+		-> const typename Find_Result<std::map<Tkey1, Tvalue>, Tkeys...>::type &
 	{
 		const auto &ptr = m.find(key0);
 		if(ptr==m.end())
-			return ZERO<typename std::remove_reference<decltype(find( ptr->second, keys... ))>::type>;
+			return zero<typename Find_Result<std::map<Tkey1, Tvalue>, Tkeys...>::type>();
 		else
 			return find( ptr->second, keys... );
 	}
