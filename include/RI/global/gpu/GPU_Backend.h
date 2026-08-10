@@ -23,7 +23,7 @@
 #include "Magmablas_Interface-Contiguous.h"
 #include "Magma_Wrapper.h"
 #include <magma_v2.h>
-#define MAGMA_CHECK(x) if((x)!=MAGMA_SUCCESS)	throw std::runtime_error(std::string(__FILE__)+" line "+std::to_string(__LINE__)+" error "+std::string(magma_strerror(x)));
+#define MAGMA_CHECK_RI(x) if((x)!=MAGMA_SUCCESS)	throw std::runtime_error(std::string(__FILE__)+" line "+std::to_string(__LINE__)+" error "+std::string(magma_strerror(x)));
 #endif
 
 #include <mpi.h>
@@ -108,7 +108,7 @@ inline void validate_local_gpu_count(const MPI_Comm& communicator)
 
     int device_count = 0;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(ddla::deviceGetDeviceCount(&device_count));
+    ddla::DEVICE_CHECK_RI(ddla::deviceGetDeviceCount(&device_count));
 #elif defined(__MAGMA_RI)
     device_count = Magma_Wrapper::magma_get_size();
 #endif
@@ -127,14 +127,14 @@ class Context
         ddla::ddla_init(queue_);
         ddla::ddla_set(queue_, communicator);
 #elif defined(__MAGMA_RI)
-        MAGMA_CHECK(magma_init());
+        MAGMA_CHECK_RI(magma_init());
         try
         {
             validate_local_gpu_count(communicator);
         }
         catch (...)
         {
-            MAGMA_CHECK(magma_finalize());
+            MAGMA_CHECK_RI(magma_finalize());
             throw;
         }
         int rank = 0;
@@ -175,9 +175,9 @@ inline void allocate(T** pointer, std::size_t count)
         return;
     }
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(ddla::deviceMalloc(pointer, count * sizeof(T)));
+    ddla::DEVICE_CHECK_RI(ddla::deviceMalloc(pointer, count * sizeof(T)));
 #elif defined(__MAGMA_RI)
-    MAGMA_CHECK(magma_malloc(reinterpret_cast<void**>(pointer), count * sizeof(T)));
+    MAGMA_CHECK_RI(magma_malloc(reinterpret_cast<void**>(pointer), count * sizeof(T)));
 #endif
 }
 
@@ -187,9 +187,9 @@ inline void free(T* pointer)
     if (pointer == nullptr)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(ddla::deviceFree(pointer));
+    ddla::DEVICE_CHECK_RI(ddla::deviceFree(pointer));
 #elif defined(__MAGMA_RI)
-    MAGMA_CHECK(magma_free(pointer));
+    MAGMA_CHECK_RI(magma_free(pointer));
 #endif
 }
 
@@ -200,7 +200,7 @@ inline void upload(
     if (count == 0)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(deviceMemcpyAsync(
+    ddla::DEVICE_CHECK_RI(deviceMemcpyAsync(
         device_data, host_data, count * sizeof(T),
         ddla::deviceMemcpyHostToDevice, stream(queue)));
 #elif defined(__MAGMA_RI)
@@ -216,7 +216,7 @@ inline void download(
     if (count == 0)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(deviceMemcpyAsync(
+    ddla::DEVICE_CHECK_RI(deviceMemcpyAsync(
         host_data, device_data, count * sizeof(T),
         ddla::deviceMemcpyDeviceToHost, stream(queue)));
 #elif defined(__MAGMA_RI)
@@ -230,17 +230,17 @@ inline void memset(void* pointer, int value, std::size_t bytes, Queue queue)
     if (bytes == 0)
         return;
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(deviceMemsetAsync(
+    ddla::DEVICE_CHECK_RI(deviceMemsetAsync(
         pointer, value, bytes, stream(queue)));
 #elif defined(__MAGMA_RI)
-    MAGMA_CHECK(magma_memset(pointer, value, bytes));
+    MAGMA_CHECK_RI(magma_memset(pointer, value, bytes));
 #endif
 }
 
 inline void sync(Queue queue)
 {
 #ifdef __DDLA_RI
-    ddla::DEVICE_CHECK(
+    ddla::DEVICE_CHECK_RI(
         ddla::deviceStreamSynchronize(stream(queue)));
 #elif defined(__MAGMA_RI)
     magma_queue_sync(queue);
@@ -312,4 +312,6 @@ inline void gemmVbatched2s(
 } // namespace GPU_Backend
 } // namespace RI
 
-#undef MAGMA_CHECK
+#ifdef __MAGMA_RI
+#undef MAGMA_CHECK_RI
+#endif
