@@ -105,9 +105,11 @@ LRI_k<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
         #pragma omp barrier
 		#pragma omp master
 		{
-            LRI_Cal_Aux::destroy_lock_result(lock_vq_result_add_map, Vq);
+            LRI_Cal_Aux::destroy_lock(lock_vq_result_add_map);
+            LRI_Cal_Aux::destroy_Ds_result(Vq);
             this->free_tensors_map2(save_name_V);
-			LRI_Cal_Aux::destroy_lock_result(lock_csk_result_add_map, Csk);
+			LRI_Cal_Aux::destroy_lock(lock_csk_result_add_map);
+			LRI_Cal_Aux::destroy_Ds_result(Csk);
             this->free_tensors_map2(save_name_C);
 		}
         #pragma omp barrier
@@ -154,7 +156,8 @@ LRI_k<TA, Tcell, Ndim, Tdata>::cal_cvcd_k_hartree(
 		}
 		LRI_Cal_Aux::add_Ds_omp_wait_map(M_nu_thread, M_nu, lock_m_result_add_map, 1.0);
 	}// end #pragma omp parallel
-	LRI_Cal_Aux::destroy_lock_result(lock_m_result_add_map, M_nu);
+	LRI_Cal_Aux::destroy_lock(lock_m_result_add_map);
+	LRI_Cal_Aux::destroy_Ds_result(M_nu);
 #ifdef __MKL_RI
 	mkl_set_num_threads(mkl_threads);
 #endif

@@ -27,9 +27,10 @@ namespace RI
 {
 
 enum class LRI_Cal_Mode {
-	CPU
+	CPU,
+	CPU_fine_grained_lock,
 	#ifdef __GPU_RI
-	, GPU
+	GPU,
 	#endif
 };
 
@@ -77,6 +78,11 @@ public:
 		const std::vector<Label::ab_ab> &labels,
 		std::map<TA, std::map<TAC, Tensor<Tdata>>> &Ds_result,
 		const double fac_add_Ds = 1.0);
+
+	void cal_loop3_CPU_fine_grained_lock(
+		const std::vector<Label::ab_ab> &labels,
+		std::map<TA, std::map<TAC, Tensor<Tdata>>> &Ds_result,
+		const double fac_add_Ds = 1.0);
 	
 	#ifdef __GPU_RI
 	void cal_loop3_GPU(
@@ -115,6 +121,7 @@ public:		// private:
 #include "LRI.hpp"
 #include "LRI-set.hpp"
 #include "LRI-cal_loop3_CPU.hpp"
+#include "LRI-cal_loop3_CPU_fine_grained_lock.hpp"
 
 #ifdef __GPU_RI
 #include "LRI-cal_loop3_GPU.hpp"

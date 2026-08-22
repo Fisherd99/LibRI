@@ -203,13 +203,31 @@ namespace LRI_Cal_Aux
 		}
 	}
 
+	template<typename Tkey0, typename Tkey1, typename Tvalue, typename TComparator0, typename TComparator1>
+	void add_Ds_omp_try_map(
+		std::map<Tkey0, std::map<Tkey1, Tvalue, TComparator1>, TComparator0> &Ds_result_thread,
+		std::map<Tkey0, std::map<Tkey1, Tvalue, TComparator1>, TComparator0> &Ds_result,
+		std::map<Tkey0, std::map<Tkey1, omp_lock_t>> &lock_Ds_result_add_map,
+		const double &fac)
+	{
+		for(auto ptr=Ds_result_thread.begin(); ptr!=Ds_result_thread.end(); )
+		{
+			const Tkey0 key = ptr->first;
+			add_Ds_omp_try_map(ptr->second, Ds_result.at(key), lock_Ds_result_add_map.at(key), fac);
+			if(ptr->second.empty())
+				ptr = Ds_result_thread.erase(ptr);
+			else
+				++ptr;
+		}
+	}
+
 	// Tkey labels thread lock, in actual use, Tkey can be TA, TC, Tk, etc.
 	// Tvalue can be Tensor or another map<key..., Tensor>, both of them can be input of add_Ds
-	template<typename Tkey, typename Tvalue, typename TComparator>
+	template<typename Tkey, typename Tvalue, typename TComparator, typename Tlock>
 	void add_Ds_omp_wait_map(
 		std::map<Tkey, Tvalue, TComparator>& Ds_result_thread,
 		std::map<Tkey, Tvalue, TComparator>& Ds_result,
-		std::map<Tkey, omp_lock_t> &lock_Ds_result_add_map,
+		std::map<Tkey, Tlock> &lock_Ds_result_add_map,
 		const double &fac)
 	{
 		if(Ds_result_thread.empty())
@@ -415,15 +433,85 @@ namespace LRI_Cal_Aux
 		return lock_Ds_result_add_map;
 	}
 
+
+	template<typename TA, typename TC, typename Tvalue>
+	std::map<TA, std::map<std::pair<TA,TC>, omp_lock_t>> init_lock_result_fine_grained(
+		const std::vector<Label::ab_ab> &labels,
+		const std::unordered_map<Label::Aab_Aab, List_A<TA,std::pair<TA,TC>>> &list_A,
+		const TC period,
+		std::map<TA, std::map<std::pair<TA,TC>, Tvalue>>& Ds_result)
+	{
+		using TAC = std::pair<TA,TC>;
+		using namespace Array_Operator;
+		std::map<TA, std::map<TAC, omp_lock_t>> lock_Ds_result_add_map;
+		for(const Label::ab_ab &label : labels)
+		{
+			switch(Label_Tools::to_Aab_Aab(label))
+			{
+				case Label::Aab_Aab::a01b01_a2b2:
+				case Label::Aab_Aab::a01b2_a2b01:
+					for(const TA &Aa01 : list_A.at(Label_Tools::to_Aab_Aab(label)).a01)
+						for(const TAC &Ab01 : list_A.at(Label_Tools::to_Aab_Aab(label)).b01)
+						{
+							Ds_result[Aa01][Ab01];
+							lock_Ds_result_add_map[Aa01][Ab01];
+						}
+					break;
+				case Label::Aab_Aab::a01b01_a2b01:
+					for(const TA &Aa01 : list_A.at(Label_Tools::to_Aab_Aab(label)).a01)
+						for(const TAC &Ab2 : list_A.at(Label_Tools::to_Aab_Aab(label)).b2)
+						{
+							Ds_result[Aa01][Ab2];
+							lock_Ds_result_add_map[Aa01][Ab2];
+						}
+					break;
+				case Label::Aab_Aab::a01b01_a01b01:
+					for(const TAC &Aa2 : list_A.at(Label_Tools::to_Aab_Aab(label)).a2)
+						for(const TAC &Ab2 : list_A.at(Label_Tools::to_Aab_Aab(label)).b2)
+						{
+							Ds_result[Aa2.first][TAC{Ab2.first, (Ab2.second-Aa2.second)%period}];
+							lock_Ds_result_add_map[Aa2.first][TAC{Ab2.first, (Ab2.second-Aa2.second)%period}];
+						}
+				case Label::Aab_Aab::a01b01_a01b2:
+					for(const TAC &Aa2 : list_A.at(Label_Tools::to_Aab_Aab(label)).a2)
+						for(const TAC &Ab01 : list_A.at(Label_Tools::to_Aab_Aab(label)).b01)
+						{
+							Ds_result[Aa2.first][TAC{Ab01.first, (Ab01.second-Aa2.second)%period}];
+							lock_Ds_result_add_map[Aa2.first][TAC{Ab01.first, (Ab01.second-Aa2.second)%period}];
+						}
+					break;
+				default:
+					throw std::invalid_argument(std::string(__FILE__)+" line "+std::to_string(__LINE__));
+			}
+		}
+		for(auto &lock_tmp : lock_Ds_result_add_map)
+			for(auto &lock : lock_tmp.second)
+				omp_init_lock(&lock.second);
+		return lock_Ds_result_add_map;
+	}
+
+	inline void destroy_lock(omp_lock_t &lock)
+	{
+		omp_destroy_lock(&lock);
+	}
 	template<typename Tkey, typename Tvalue, typename TComparator>
-	void destroy_lock_result(
-		std::map<Tkey, omp_lock_t> &locks,
-		std::map<Tkey, Tvalue, TComparator> &Ds_result)
+	void destroy_lock(
+		std::map<Tkey, Tvalue, TComparator> &locks)
 	{
 		for(auto &lock : locks)
-			omp_destroy_lock(&lock.second);
+			destroy_lock(lock.second);
+	}
+
+	template<typename T>
+	void destroy_Ds_result(T &Ds_result){}
+
+	template<typename Tkey, typename Tvalue, typename TComparator>
+	void destroy_Ds_result(
+		std::map<Tkey, Tvalue, TComparator> &Ds_result)
+	{
 		for(auto ptr=Ds_result.begin(); ptr!=Ds_result.end(); )
 		{
+			destroy_Ds_result(ptr->second);
 			if(ptr->second.empty())
 				ptr = Ds_result.erase(ptr);
 			else

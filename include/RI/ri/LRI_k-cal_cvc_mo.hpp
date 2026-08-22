@@ -381,7 +381,8 @@ LRI_k<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_onthefly(
 		LRI_Cal_Aux::add_Ds_omp_wait_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
 	} // end #pragma omp parallel
 
-	LRI_Cal_Aux::destroy_lock_result(lock_cvc_result_add_map, cvc_mo_k);
+	LRI_Cal_Aux::destroy_lock(lock_cvc_result_add_map);
+	LRI_Cal_Aux::destroy_Ds_result(cvc_mo_k);
 
 #ifdef __MKL_RI
 	mkl_set_num_threads(mkl_threads);
@@ -448,7 +449,8 @@ LRI_k<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 		#pragma omp barrier
 		#pragma omp master
 		{
-			LRI_Cal_Aux::destroy_lock_result(lock_vq_result_add_map, Vq);
+			LRI_Cal_Aux::destroy_lock(lock_vq_result_add_map);
+			LRI_Cal_Aux::destroy_Ds_result(Vq);
 		}
 		#pragma omp barrier
 
@@ -489,7 +491,8 @@ LRI_k<TA, Tcell, Ndim, Tdata>::cal_cvc_mo_k_hartree_onthefly(
 		LRI_Cal_Aux::add_Ds_omp_wait_map(cvc_mo_k_thread, cvc_mo_k, lock_cvc_result_add_map, 1.0);
 	} // end #pragma omp parallel
 
-	LRI_Cal_Aux::destroy_lock_result(lock_cvc_result_add_map, cvc_mo_k);
+	LRI_Cal_Aux::destroy_lock(lock_cvc_result_add_map);
+	LRI_Cal_Aux::destroy_Ds_result(cvc_mo_k);
 
 	#ifdef __MKL_RI
 	mkl_set_num_threads(mkl_threads);

@@ -403,7 +403,8 @@ namespace LRI_Loop3_Test
 		MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &mpi_init_provide);
 
 		const std::vector<RI::LRI_Cal_Mode> cal_modes = {
-			RI::LRI_Cal_Mode::CPU
+			RI::LRI_Cal_Mode::CPU,
+			RI::LRI_Cal_Mode::CPU_fine_grained_lock,
 			#ifdef __GPU_RI
 			, RI::LRI_Cal_Mode::GPU
 			#endif
